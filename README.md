@@ -36,6 +36,15 @@ scripts/backend.ps1   Windows 后端任务入口
 
 修改前阅读根目录和对应子目录的 `AGENTS.md`。
 
+## API 文档
+
+- 交互式 API 参考（Scalar）：`http://localhost:3000/docs/api`
+- OpenAPI 契约：`backend/openapi/openapi.yaml`，运行时由 `GET /v1/openapi.yaml` 提供
+- Markdown 接口分类与详解：`backend/openapi/README.md`
+- 错误码、限流、超时与 curl/PowerShell 示例：`backend/openapi/errors.md`、`backend/openapi/testing.md`
+
+Scalar 页面会在浏览器中直接加载契约，导航、接口说明、参数、请求示例和响应表均由 OpenAPI 自动生成；Test Request 会自动获取 CSRF Token、携带同源 Cookie，并在非 GET 请求中附加 `X-CSRF-Token`，不需要 Postman。
+
 ## 本地启动
 
 需要 Go 1.26+、Node.js 22.12+（建议 24 LTS）、pnpm 10、PostgreSQL 17。依赖版本以 `go.mod` 和 `frontend/pnpm-lock.yaml` 为准。
@@ -57,7 +66,7 @@ scripts/backend.ps1   Windows 后端任务入口
    pnpm dev
    ```
 
-打开 **http://localhost:3000**，创建自己的测试账户。前端通过同源 `/v1` 代理访问 `127.0.0.1:8080`。浏览器访问地址的 Origin 必须与 `APP_ORIGIN` 完全一致，不要混用 `localhost` 和 `127.0.0.1`。
+打开 **http://localhost:3000**，创建自己的测试账户。前端通过同源 `/v1` 代理访问 `127.0.0.1:8080`。若 3000 被占用，Vite 会自动尝试 3001、3002……并打印实际地址；开发代理会把 localhost 的 `/v1` Origin 重写为 `APP_ORIGIN`（默认 `http://localhost:3000`），因此本地注册和登录仍然可用。生产环境不启用该重写，浏览器 Origin 仍必须与 `APP_ORIGIN` 完全一致；不要混用 `localhost` 和 `127.0.0.1`。
 
 本次开发环境使用的独立数据库位于被 Git 忽略的 `.local/postgres/`，监听 `127.0.0.1:55432`；随机密码和连接串保存在 `.local/`。Windows 脚本在没有根目录 `.env` 时可读取 `.local/dev.env`。不要同时启动占用同一端口的 Docker 数据库。
 

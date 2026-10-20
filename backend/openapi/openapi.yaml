@@ -1,60 +1,150 @@
 openapi: 3.0.3
 info:
   title: NumDock API
-  version: 0.1.0
+  version: 0.2.0
   description: |
-    Identity and organization slice. Browser mutations require an exact Origin
-    match, a CSRF cookie, and the X-CSRF-Token returned by GET /v1/auth/csrf.
-    Secure deployments use __Host- prefixed cookies. All responses are no-store.
+    Identity and organization API for NumDock.
+
+    ## Authentication and CSRF
+    Browser sessions use HttpOnly cookies. Before a state-changing request,
+    call `GET /v1/auth/csrf`. The response sets an HttpOnly CSRF cookie and
+    returns the same token in JSON. Send that token in `X-CSRF-Token` and send
+    an `Origin` header that exactly matches `APP_ORIGIN`.
+
+    Sessions are rotated on login. Logout revokes the current session in
+    PostgreSQL and clears the browser cookie.
+
+    ## Errors and request IDs
+    Every failure uses the `Error` envelope with a stable machine-readable
+    `code`, a human-readable `message`, and a `request_id`. The same value is
+    returned in the `X-Request-ID` response header. All responses are
+    `Cache-Control: no-store`.
+
+    ## Rate limits
+    Register and login have two persistent fixed-window limits per minute:
+    20 attempts per client IP and 10 attempts per normalized email. A 429
+    response includes `Retry-After: 60`.
+
+    ## API guide
+    See `backend/openapi/README.md` for the endpoint catalogue, error tables,
+    and curl examples. Interactive Scalar documentation is available at
+    `/docs/api` when the frontend is running.
+  contact:
+    name: NumDock API
 servers:
   - url: /
+    description: Same-origin deployment through the frontend or reverse proxy
+  - url: http://127.0.0.1:8080
+    description: Direct local API
 tags:
+  - name: Health
+    description: Liveness and readiness probes.
+  - name: Documentation
+    description: Machine-readable API contract.
   - name: Identity
+    description: Registration, login, logout, CSRF, and the current identity.
   - name: Organizations
+    description: Organizations visible to the authenticated user.
+externalDocs:
+  description: Interactive API reference
+  url: /docs/api
 paths:
   /healthz:
     get:
-      operationId: health
+      tags: [Health]
+      operationId: getLiveness
+      summary: Liveness probe
+      description: Returns 200 while the API process is running. It does not check PostgreSQL.
       responses:
         '200':
-          description: Process is alive
+          description: Process is alive.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /readyz:
     get:
-      operationId: readiness
+      tags: [Health]
+      operationId: getReadiness
+      summary: Readiness probe
+      description: Pings PostgreSQL with a one-second timeout. Use this for load balancers and orchestrators.
       responses:
         '200':
-          description: Database is reachable
+          description: Database is reachable.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
         '503':
-          $ref: '#/components/responses/Error'
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
+  /v1/openapi.yaml:
+    get:
+      tags: [Documentation]
+      operationId: getOpenAPIDocument
+      summary: Download the OpenAPI contract
+      description: Returns the same OpenAPI document used by the Scalar reference at `/docs/api`.
+      responses:
+        '200':
+          description: OpenAPI 3.0 YAML document.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/yaml:
+              schema:
+                type: string
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /v1/auth/csrf:
     get:
       tags: [Identity]
       operationId: getCSRFToken
+      summary: Get a CSRF token
+      description: |
+        Returns a CSRF token and sets the matching HttpOnly CSRF cookie.
+        Reuse the existing cookie token when it is still valid. The token is
+        also required in `X-CSRF-Token` for register, login, and logout.
       responses:
         '200':
-          description: CSRF token; also sets an HttpOnly SameSite cookie
+          description: CSRF token and cookie.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Set-Cookie:
+              $ref: '#/components/headers/SetCookie'
           content:
             application/json:
               schema:
-                type: object
-                required: [token]
-                properties:
-                  token:
-                    type: string
-        default:
-          $ref: '#/components/responses/Error'
+                $ref: '#/components/schemas/CSRFToken'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /v1/auth/register:
     post:
       tags: [Identity]
       operationId: register
+      summary: Create an account and workspace
+      description: |
+        Creates a user, an organization, an owner membership, and a session in
+        one PostgreSQL transaction. The previous session cookie, when present,
+        is revoked. The new session cookie is only set after the transaction
+        commits. The browser must send an `Origin` header that exactly matches
+        `APP_ORIGIN`.
       parameters:
         - $ref: '#/components/parameters/CSRF'
       requestBody:
@@ -65,17 +155,43 @@ paths:
               $ref: '#/components/schemas/Registration'
       responses:
         '201':
-          description: User, owner membership, organization and session created atomically
+          description: Account, organization, owner membership, and session created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Set-Cookie:
+              $ref: '#/components/headers/SetCookie'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Identity'
-        default:
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /v1/auth/login:
     post:
       tags: [Identity]
       operationId: login
+      summary: Sign in and rotate the session
+      description: |
+        Verifies the email and password, revokes the presented session cookie
+        when present, creates a new session, and returns the current identity.
+        Missing accounts still perform a dummy password hash to reduce timing
+        differences. The browser must send an `Origin` header that exactly
+        matches `APP_ORIGIN`.
       parameters:
         - $ref: '#/components/parameters/CSRF'
       requestBody:
@@ -86,87 +202,253 @@ paths:
               $ref: '#/components/schemas/Credentials'
       responses:
         '200':
-          description: Signed in; prior session cookie is rotated and revoked
+          description: Signed in; prior session cookie is rotated and revoked.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Set-Cookie:
+              $ref: '#/components/headers/SetCookie'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Identity'
-        default:
-          $ref: '#/components/responses/Error'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /v1/auth/logout:
     post:
       tags: [Identity]
       operationId: logout
+      summary: Revoke the current session
+      description: |
+        Requires a valid session and CSRF token. The session hash is deleted
+        from PostgreSQL and the browser session cookie is cleared. The browser
+        must send an `Origin` header that exactly matches `APP_ORIGIN`.
       security:
         - Session: []
       parameters:
         - $ref: '#/components/parameters/CSRF'
       responses:
         '204':
-          description: Session revoked in PostgreSQL and cookie removed
-        default:
-          $ref: '#/components/responses/Error'
+          description: Session revoked and cookie cleared.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+            Set-Cookie:
+              $ref: '#/components/headers/SetCookie'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /v1/me:
     get:
       tags: [Identity]
       operationId: getIdentity
+      summary: Get the current identity
+      description: Returns the authenticated user and their own memberships.
       security:
         - Session: []
       responses:
         '200':
-          description: Current authenticated user and their own memberships
+          description: Current user and organizations.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Identity'
-        default:
-          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
   /v1/organizations:
     get:
       tags: [Organizations]
       operationId: listOrganizations
+      summary: List the current user's organizations
+      description: Returns only organizations joined by the authenticated user, ordered by creation time and ID.
       security:
         - Session: []
       parameters:
-        - name: limit
-          in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
-        - name: offset
-          in: query
-          schema: { type: integer, minimum: 0, default: 0 }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
       responses:
         '200':
-          description: Own organizations, ordered by creation time and ID ascending
+          description: Paginated organizations.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
           content:
             application/json:
               schema:
-                type: object
-                required: [items, limit, offset]
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Organization'
-                  limit: { type: integer }
-                  offset: { type: integer }
-        default:
-          $ref: '#/components/responses/Error'
+                $ref: '#/components/schemas/OrganizationList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     Session:
       type: apiKey
       in: cookie
       name: numdock_session
-      description: HttpOnly cookie. Named __Host-numdock_session when COOKIE_SECURE is true.
+      description: |
+        HttpOnly session cookie. Secure deployments use the
+        `__Host-numdock_session` name. Browser clients must send cookies and
+        must not store the session token in localStorage.
   parameters:
     CSRF:
       name: X-CSRF-Token
       in: header
       required: true
-      schema: { type: string }
+      description: Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie.
+      schema:
+        type: string
+        pattern: '^[A-Za-z0-9_-]{43}$'
+    Limit:
+      name: limit
+      in: query
+      description: Maximum number of organizations to return.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    Offset:
+      name: offset
+      in: query
+      description: Number of organizations to skip.
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  headers:
+    XRequestID:
+      description: Server-generated request identifier. It is safe to share with support and appears in server logs.
+      schema:
+        type: string
+    RetryAfter:
+      description: Seconds to wait before retrying the request.
+      schema:
+        type: string
+        example: '60'
+    SetCookie:
+      description: May contain one or more Set-Cookie headers (session or CSRF cookies).
+      schema:
+        type: string
   responses:
-    Error:
-      description: Request failed; see code and request_id. Rate limits return Retry-After.
+    BadRequest:
+      description: Invalid JSON, unknown fields, invalid email/password/name, or invalid pagination.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Missing, expired, or revoked session.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Origin or CSRF validation failed.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Email is already registered. The message is intentionally generic to reduce account enumeration.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    PayloadTooLarge:
+      description: Request body exceeds 8192 bytes.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    UnsupportedMediaType:
+      description: Content-Type is not application/json.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    TooManyRequests:
+      description: Persistent IP or email authentication rate limit exceeded.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+        Retry-After:
+          $ref: '#/components/headers/RetryAfter'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Unexpected server or database failure. Share the request ID, not credentials or message content.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    GatewayTimeout:
+      description: The request exceeded the 15-second server timeout.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Database is unavailable; the readiness probe cannot serve traffic.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/XRequestID'
       content:
         application/json:
           schema:
@@ -175,57 +457,130 @@ components:
     Health:
       type: object
       required: [status]
+      additionalProperties: false
       properties:
-        status: { type: string, enum: [ok, ready] }
+        status:
+          type: string
+          enum: [ok, ready]
     Error:
       type: object
       required: [code, message, request_id]
+      additionalProperties: false
       properties:
-        code: { type: string }
-        message: { type: string }
-        request_id: { type: string }
+        code:
+          type: string
+          description: |
+            Stable machine-readable code. Current values include:
+            validation_failed, invalid_request, unsupported_media_type,
+            payload_too_large, csrf_failed, account_unavailable,
+            invalid_credentials, unauthenticated, rate_limited, not_found,
+            method_not_allowed, not_ready, request_timeout, internal_error.
+          example: validation_failed
+        message:
+          type: string
+          description: User-safe message. Do not parse this field for control flow; use code.
+          example: Enter a valid email address.
+        request_id:
+          type: string
+          description: Correlates this response with server logs.
+          example: 3d4f6a9b2c1e4f67890a1b
+    CSRFToken:
+      type: object
+      required: [token]
+      additionalProperties: false
+      properties:
+        token:
+          type: string
+          pattern: '^[A-Za-z0-9_-]{43}$'
+          description: Send this value in the X-CSRF-Token header; it must match the CSRF cookie.
     Credentials:
       type: object
       required: [email, password]
       additionalProperties: false
       properties:
-        email: { type: string, format: email, maxLength: 254 }
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          description: Lowercased and trimmed before lookup.
         password:
           type: string
-          description: Contains 12–128 Unicode code points; spaces are allowed.
           minLength: 12
           maxLength: 128
+          description: 12–128 Unicode code points; spaces are allowed.
+      example:
+        email: alex@example.com
+        password: a sufficiently long passphrase
     Registration:
       type: object
       required: [email, password, name, organization_name]
       additionalProperties: false
       properties:
-        email: { type: string, format: email, maxLength: 254 }
+        email:
+          type: string
+          format: email
+          maxLength: 254
         password:
           type: string
-          description: Contains 12–128 Unicode code points; spaces are allowed.
           minLength: 12
           maxLength: 128
-        name: { type: string, minLength: 1, maxLength: 100 }
-        organization_name: { type: string, minLength: 1, maxLength: 100 }
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        organization_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+      example:
+        email: alex@example.com
+        password: a sufficiently long passphrase
+        name: Alex
+        organization_name: Alpha
     User:
       type: object
       required: [id, email, name, created_at]
       additionalProperties: false
       properties:
-        id: { type: string, format: uuid }
-        email: { type: string, format: email }
-        name: { type: string }
-        created_at: { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 100
+        created_at:
+          type: string
+          format: date-time
+      example:
+        id: 4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21
+        email: alex@example.com
+        name: Alex
+        created_at: '2026-10-20T12:00:00Z'
     Organization:
       type: object
       required: [id, name, role, created_at]
       additionalProperties: false
       properties:
-        id: { type: string, format: uuid }
-        name: { type: string }
-        role: { type: string, enum: [owner, admin, member] }
-        created_at: { type: string, format: date-time }
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum: [owner, admin, member]
+        created_at:
+          type: string
+          format: date-time
+      example:
+        id: 6c72da79-7c19-49a9-95c9-18d979051b3f
+        name: Alpha
+        role: owner
+        created_at: '2026-10-20T12:00:00Z'
     Identity:
       type: object
       required: [user, organizations]
@@ -237,3 +592,38 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Organization'
+      example:
+        user:
+          id: 4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21
+          email: alex@example.com
+          name: Alex
+          created_at: '2026-10-20T12:00:00Z'
+        organizations:
+          - id: 6c72da79-7c19-49a9-95c9-18d979051b3f
+            name: Alpha
+            role: owner
+            created_at: '2026-10-20T12:00:00Z'
+    OrganizationList:
+      type: object
+      required: [items, limit, offset]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+        offset:
+          type: integer
+          minimum: 0
+      example:
+        items:
+          - id: 6c72da79-7c19-49a9-95c9-18d979051b3f
+            name: Alpha
+            role: owner
+            created_at: '2026-10-20T12:00:00Z'
+        limit: 20
+        offset: 0

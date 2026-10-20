@@ -15,6 +15,7 @@ import (
 	"numdock/backend/internal/platform/config"
 	"numdock/backend/internal/platform/httpserver"
 	"numdock/backend/internal/platform/httpx"
+	"numdock/backend/openapi"
 )
 
 const requestTimeout = 15 * time.Second
@@ -50,7 +51,13 @@ func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler
 			Status string `json:"status"`
 		}{"ready"})
 	})
-	r.Route("/v1", identityHandler.Routes)
+	r.Route("/v1", func(v1 chi.Router) {
+		v1.Get("/openapi.yaml", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
+			_, _ = w.Write(openapi.Spec)
+		})
+		identityHandler.Routes(v1)
+	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, 404, "not_found", "This endpoint does not exist.")
 	})

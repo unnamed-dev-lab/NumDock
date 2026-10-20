@@ -1,0 +1,75 @@
+name: backend
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "backend/**"
+      - "scripts/backend.ps1"
+      - ".github/workflows/backend.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "scripts/backend.ps1"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: numdock
+          POSTGRES_PASSWORD: numdock
+          POSTGRES_DB: numdock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U numdock -d numdock"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://numdock:numdock@127.0.0.1:5432/numdock?sslmode=disable
+      TEST_DATABASE_URL: postgres://numdock:numdock@127.0.0.1:5432/numdock?sslmode=disable
+      APP_ORIGIN: http://localhost:3000
+      COOKIE_SECURE: "false"
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Check formatting
+        run: test -z "$(gofmt -l cmd internal db)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test with real PostgreSQL
+        run: go test -race -count=1 -cover ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Check sqlc output
+        run: go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 diff
+
+      - name: Static analysis
+        run: go run honnef.co/go/tools/cmd/staticcheck@v0.8.2 ./...

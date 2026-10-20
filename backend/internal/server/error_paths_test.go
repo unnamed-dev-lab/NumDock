@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"numdock/backend/internal/httpx"
+	"numdock/backend/internal/platform/httpx"
 )
 
 func TestRequestIDsAreServerGenerated(t *testing.T) {

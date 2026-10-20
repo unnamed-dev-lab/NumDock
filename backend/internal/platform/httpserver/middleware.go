@@ -1,4 +1,4 @@
-package server
+package httpserver
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
-	"numdock/backend/internal/httpx"
+	"numdock/backend/internal/platform/httpx"
 )
 
 const statusClientClosedRequest = 499
@@ -27,9 +27,9 @@ func ensureStatusWriter(w http.ResponseWriter, r *http.Request) (http.ResponseWr
 	return wrapped, wrapped
 }
 
-// requestID ignores client-supplied request IDs and always generates a fresh
+// RequestID ignores client-supplied request IDs and always generates a fresh
 // server-side value. This keeps audit logs and error envelopes trustworthy.
-func requestID(next http.Handler) http.Handler {
+func RequestID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		id := httpx.NewRequestID()
 		w.Header().Set("X-Request-ID", id)
@@ -40,7 +40,7 @@ func requestID(next http.Handler) http.Handler {
 	})
 }
 
-func logging(logger *slog.Logger) func(http.Handler) http.Handler {
+func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			started := time.Now()
@@ -70,7 +70,7 @@ func logging(logger *slog.Logger) func(http.Handler) http.Handler {
 	}
 }
 
-func recoverer(logger *slog.Logger) func(http.Handler) http.Handler {
+func Recoverer(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			writer, status := ensureStatusWriter(w, r)
@@ -104,7 +104,7 @@ func recoverer(logger *slog.Logger) func(http.Handler) http.Handler {
 // deadline may write their own 504; if they return without writing anything,
 // this middleware supplies the error envelope. It never overwrites a response
 // that has already started, avoiding duplicate WriteHeader calls.
-func timeout(d time.Duration) func(http.Handler) http.Handler {
+func Timeout(d time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx, cancel := context.WithTimeout(r.Context(), d)

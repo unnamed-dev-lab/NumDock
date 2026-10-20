@@ -3,7 +3,7 @@
 //   sqlc v1.31.1
 // source: identity.sql
 
-package store
+package db
 
 import (
 	"context"

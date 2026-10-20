@@ -1,10 +1,9 @@
-package auth
+package identity
 
 import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -44,12 +43,10 @@ func verifyPassword(password, encoded string) bool {
 	return subtle.ConstantTimeCompare(expected, actual) == 1
 }
 
-var errPasswordLength = errors.New("password length must be between 12 and 128 characters")
-
-func validatePassword(password string) error {
+func ValidatePassword(password string) error {
 	length := utf8.RuneCountInString(password)
 	if length < 12 || length > 128 {
-		return errPasswordLength
+		return ErrPasswordLength
 	}
 	return nil
 }

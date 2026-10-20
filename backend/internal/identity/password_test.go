@@ -1,4 +1,4 @@
-package auth
+package identity
 
 import (
 	"strings"
@@ -30,14 +30,14 @@ func TestPasswordHash(t *testing.T) {
 
 func TestPasswordBounds(t *testing.T) {
 	for _, value := range []string{"", "too short", strings.Repeat("a", 129), strings.Repeat("中", 11)} {
-		if validatePassword(value) == nil {
+		if ValidatePassword(value) == nil {
 			t.Fatal("accepted short password")
 		}
 	}
-	if validatePassword("a valid long passphrase") != nil {
+	if ValidatePassword("a valid long passphrase") != nil {
 		t.Fatal("rejected valid passphrase")
 	}
-	if validatePassword(strings.Repeat("中", 12)) != nil {
+	if ValidatePassword(strings.Repeat("中", 12)) != nil {
 		t.Fatal("rejected valid Unicode passphrase")
 	}
 }

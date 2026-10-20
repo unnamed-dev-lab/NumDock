@@ -9,23 +9,27 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"numdock/backend/internal/auth"
-	"numdock/backend/internal/config"
-	"numdock/backend/internal/httpx"
+	"numdock/backend/internal/identity"
+	identityhttp "numdock/backend/internal/identity/httpapi"
+	identitypostgres "numdock/backend/internal/identity/postgres"
+	"numdock/backend/internal/platform/config"
+	"numdock/backend/internal/platform/httpserver"
+	"numdock/backend/internal/platform/httpx"
 )
 
 const requestTimeout = 15 * time.Second
 
 func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler, error) {
-	identity, err := auth.New(pool, c.AppOrigin, c.SecureCookies, logger)
+	identityService, err := identity.NewService(identitypostgres.New(pool))
 	if err != nil {
 		return nil, err
 	}
+	identityHandler := identityhttp.New(identityService, c.AppOrigin, c.SecureCookies, logger)
 	r := chi.NewRouter()
-	r.Use(requestID)
-	r.Use(logging(logger))
-	r.Use(recoverer(logger))
-	r.Use(timeout(requestTimeout))
+	r.Use(httpserver.RequestID)
+	r.Use(httpserver.Logging(logger))
+	r.Use(httpserver.Recoverer(logger))
+	r.Use(httpserver.Timeout(requestTimeout))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.JSON(w, 200, struct {
 			Status string `json:"status"`
@@ -42,7 +46,7 @@ func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler
 			Status string `json:"status"`
 		}{"ready"})
 	})
-	r.Route("/v1", identity.Routes)
+	r.Route("/v1", identityHandler.Routes)
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, 404, "not_found", "This endpoint does not exist.")
 	})

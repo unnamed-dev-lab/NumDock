@@ -8,8 +8,8 @@
 - 优先 Go 标准库，按真实需求增加依赖；保持强类型，避免无意义的 `any`、类型断言和无收益抽象。
 - 首先采用按领域组织的模块化单体，不提前拆分微服务。后端负责全部核心业务、权限、金额计算和状态转换。
 - Go module、API、worker、数据库迁移、SQL 查询和 OpenAPI 契约均归入 `backend/`，不再沿用原稿中仓库根目录的 `apps/api` 方案。
-- 推荐按实际需要建立 `cmd/api/`、`cmd/worker/`、`internal/`、`db/migrations/`、`db/queries/`、`openapi/`。不要求提前创建空壳模块。
-- `internal/` 领域包括 auth、organizations、catalog、inventory、leases、orders、messaging、billing、providers、compliance、realtime；边界明确，按切片逐步实现。
+- 推荐按实际需要建立 `cmd/api/`、`cmd/worker/`、`internal/<domain>/`、`internal/platform/`、`db/migrations/`、`openapi/`。每个领域拥有自己的 HTTP 适配、用例和 PostgreSQL 适配；不要把业务查询集中到全局 `internal/store`。
+- `internal/` 领域包括 identity、catalog、inventory、leases、orders、messaging、billing、providers、compliance、realtime；`identity` 覆盖用户、会话与组织成员关系。边界明确，按切片逐步实现。领域包不依赖 HTTP 或具体数据库，`platform` 不反向依赖业务领域。
 
 ## 2. 身份与组织
 

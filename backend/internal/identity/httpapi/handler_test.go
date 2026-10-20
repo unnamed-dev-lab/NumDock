@@ -1,4 +1,4 @@
-package auth
+package httpapi
 
 import (
 	"bytes"
@@ -12,7 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"numdock/backend/internal/httpx"
+	"numdock/backend/internal/identity"
+	"numdock/backend/internal/platform/httpx"
 )
 
 func TestInternalErrorMapping(t *testing.T) {
@@ -88,6 +89,8 @@ func TestErrorType(t *testing.T) {
 		{"deadline", context.DeadlineExceeded, "deadline_exceeded"},
 		{"canceled", context.Canceled, "canceled"},
 		{"wrapped deadline", errors.Join(errors.New("query failed"), context.DeadlineExceeded), "deadline_exceeded"},
+		{"store sqlstate", &identity.StoreError{Operation: "query", Code: "23505"}, "database_23505"},
+		{"store without code", &identity.StoreError{Operation: "query"}, "database"},
 		{"unknown", errors.New("boom"), "internal"},
 	}
 	for _, tc := range tests {

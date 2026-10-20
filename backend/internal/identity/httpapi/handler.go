@@ -1,7 +1,8 @@
-package auth
+package httpapi
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -20,25 +21,17 @@ import (
 	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
-	"numdock/backend/internal/httpx"
-	"numdock/backend/internal/store"
+	"numdock/backend/internal/identity"
+	"numdock/backend/internal/platform/httpx"
 )
 
-const sessionTTL = 12 * time.Hour
-
 type Handler struct {
-	pool      *pgxpool.Pool
-	queries   *store.Queries
-	origin    string
-	secure    bool
-	logger    *slog.Logger
-	dummyHash string
-	slots     chan struct{}
+	service *identity.Service
+	origin  string
+	secure  bool
+	logger  *slog.Logger
+	slots   chan struct{}
 }
 
 type User struct {
@@ -67,12 +60,8 @@ type credentials struct {
 	OrganizationName string `json:"organization_name,omitempty"`
 }
 
-func New(pool *pgxpool.Pool, origin string, secure bool, logger *slog.Logger) (*Handler, error) {
-	dummy, err := hashPassword("constant-dummy-password-not-a-user")
-	if err != nil {
-		return nil, err
-	}
-	return &Handler{pool: pool, queries: store.New(pool), origin: origin, secure: secure, logger: logger, dummyHash: dummy, slots: make(chan struct{}, 4)}, nil
+func New(service *identity.Service, origin string, secure bool, logger *slog.Logger) *Handler {
+	return &Handler{service: service, origin: origin, secure: secure, logger: logger, slots: make(chan struct{}, 4)}
 }
 
 func (h *Handler) Routes(r chi.Router) {
@@ -100,6 +89,14 @@ func validToken(token string) bool {
 	return err == nil && len(raw) == 32
 }
 
+func randomToken() (string, error) {
+	token := make([]byte, 32)
+	if _, err := rand.Read(token); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(token), nil
+}
+
 func (h *Handler) csrf(w http.ResponseWriter, r *http.Request) {
 	token := ""
 	if cookie, err := r.Cookie(h.cookieName("csrf")); err == nil && validToken(cookie.Value) {
@@ -113,7 +110,7 @@ func (h *Handler) csrf(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	h.setCookie(w, "csrf", token, sessionTTL)
+	h.setCookie(w, "csrf", token, identity.SessionTTL)
 	httpx.JSON(w, http.StatusOK, struct {
 		Token string `json:"token"`
 	}{token})
@@ -139,7 +136,7 @@ func (h *Handler) limit(next http.Handler) http.Handler {
 		}
 		key := sha256.Sum256([]byte("ip:" + host))
 		// Persistent counters are shared across API replicas. Never trust forwarded IP headers here.
-		count, err := h.queries.ConsumeAuthLimit(r.Context(), hex.EncodeToString(key[:]))
+		count, err := h.service.ConsumeAuthLimit(r.Context(), hex.EncodeToString(key[:]))
 		if err != nil {
 			h.internal(w, r, err)
 			return
@@ -208,7 +205,7 @@ func (h *Handler) readCredentials(w http.ResponseWriter, r *http.Request, regist
 		httpx.Fail(w, r, 400, "validation_failed", "Enter a valid email address.")
 		return c, false
 	}
-	if err := validatePassword(c.Password); err != nil {
+	if err := identity.ValidatePassword(c.Password); err != nil {
 		httpx.Fail(w, r, 400, "validation_failed", "Use a password between 12 and 128 characters.")
 		return c, false
 	}
@@ -218,7 +215,7 @@ func (h *Handler) readCredentials(w http.ResponseWriter, r *http.Request, regist
 		return c, false
 	}
 	key := sha256.Sum256([]byte("email:" + c.Email))
-	count, err := h.queries.ConsumeAuthLimit(r.Context(), hex.EncodeToString(key[:]))
+	count, err := h.service.ConsumeAuthLimit(r.Context(), hex.EncodeToString(key[:]))
 	if err != nil {
 		h.internal(w, r, err)
 		return c, false
@@ -235,53 +232,26 @@ func (h *Handler) register(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	hash, err := hashPassword(c.Password)
+	result, token, err := h.service.Register(r.Context(), identity.RegisterInput{
+		Email:            c.Email,
+		Password:         c.Password,
+		Name:             c.Name,
+		OrganizationName: c.OrganizationName,
+	})
+	if errors.Is(err, identity.ErrEmailTaken) {
+		httpx.Fail(w, r, 409, "account_unavailable", "Unable to create this account. Try signing in instead.")
+		return
+	}
+	if errors.Is(err, identity.ErrPasswordLength) {
+		httpx.Fail(w, r, 400, "validation_failed", "Use a password between 12 and 128 characters.")
+		return
+	}
 	if err != nil {
 		h.internal(w, r, err)
 		return
 	}
-	tx, err := h.pool.Begin(r.Context())
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	defer tx.Rollback(r.Context())
-	q := h.queries.WithTx(tx)
-	user, err := q.CreateUser(r.Context(), store.CreateUserParams{Email: c.Email, Name: c.Name, PasswordHash: hash})
-	if err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			httpx.Fail(w, r, 409, "account_unavailable", "Unable to create this account. Try signing in instead.")
-			return
-		}
-		h.internal(w, r, err)
-		return
-	}
-	org, err := q.CreateOrganization(r.Context(), c.OrganizationName)
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	if err := q.CreateMembership(r.Context(), store.CreateMembershipParams{UserID: user.ID, OrganizationID: org.ID}); err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	token, err := h.createSession(r, q, user.ID)
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	identity, err := h.identity(r, q, user)
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	if err := tx.Commit(r.Context()); err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	h.setCookie(w, "session", token, sessionTTL)
-	httpx.JSON(w, http.StatusCreated, identity)
+	h.setCookie(w, "session", token, identity.SessionTTL)
+	httpx.JSON(w, http.StatusCreated, mapIdentity(result))
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
@@ -289,92 +259,39 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	user, err := h.queries.UserByEmail(r.Context(), c.Email)
-	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
-		h.internal(w, r, err)
-		return
+	oldToken := ""
+	if cookie, err := r.Cookie(h.cookieName("session")); err == nil {
+		oldToken = cookie.Value
 	}
-	hash := h.dummyHash
-	if err == nil {
-		hash = user.PasswordHash
-	}
-	if !verifyPassword(c.Password, hash) || err != nil {
+	result, token, err := h.service.Login(r.Context(), c.Email, c.Password, oldToken)
+	if errors.Is(err, identity.ErrInvalidCredentials) {
 		httpx.Fail(w, r, 401, "invalid_credentials", "Email or password is incorrect.")
 		return
 	}
-	tx, err := h.pool.Begin(r.Context())
 	if err != nil {
 		h.internal(w, r, err)
 		return
 	}
-	defer tx.Rollback(r.Context())
-	q := h.queries.WithTx(tx)
-	token, err := h.createSession(r, q, user.ID)
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	identity, err := h.identity(r, q, user)
-	if err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	if err := tx.Commit(r.Context()); err != nil {
-		h.internal(w, r, err)
-		return
-	}
-	h.setCookie(w, "session", token, sessionTTL)
-	httpx.JSON(w, 200, identity)
+	h.setCookie(w, "session", token, identity.SessionTTL)
+	httpx.JSON(w, 200, mapIdentity(result))
 }
 
-func (h *Handler) createSession(r *http.Request, q *store.Queries, userID string) (string, error) {
-	token, err := randomToken()
-	if err != nil {
-		return "", err
-	}
-	if cookie, err := r.Cookie(h.cookieName("session")); err == nil {
-		hash := sha256.Sum256([]byte(cookie.Value))
-		if err := q.DeleteSession(r.Context(), hash[:]); err != nil {
-			return "", err
-		}
-	}
-	hash := sha256.Sum256([]byte(token))
-	err = q.CreateSession(r.Context(), store.CreateSessionParams{TokenHash: hash[:], UserID: userID, ExpiresAt: pgtype.Timestamptz{Time: time.Now().Add(sessionTTL), Valid: true}})
-	if err != nil {
-		return "", err
-	}
-	return token, nil
-}
-
-func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (store.User, bool) {
+func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (identity.User, bool) {
 	cookie, err := r.Cookie(h.cookieName("session"))
 	if err != nil || !validToken(cookie.Value) {
 		httpx.Fail(w, r, 401, "unauthenticated", "Sign in to continue.")
-		return store.User{}, false
+		return identity.User{}, false
 	}
-	hash := sha256.Sum256([]byte(cookie.Value))
-	user, err := h.queries.SessionUser(r.Context(), hash[:])
-	if errors.Is(err, pgx.ErrNoRows) {
+	user, err := h.service.CurrentUser(r.Context(), cookie.Value)
+	if errors.Is(err, identity.ErrUnauthenticated) {
 		httpx.Fail(w, r, 401, "unauthenticated", "Your session expired. Please sign in again.")
-		return store.User{}, false
+		return identity.User{}, false
 	}
 	if err != nil {
 		h.internal(w, r, err)
-		return store.User{}, false
+		return identity.User{}, false
 	}
 	return user, true
-}
-
-func (h *Handler) identity(r *http.Request, q *store.Queries, user store.User) (Identity, error) {
-	rows, err := q.UserOrganizations(r.Context(), user.ID)
-	if err != nil {
-		return Identity{}, err
-	}
-	organizations := make([]Organization, 0, len(rows))
-	for _, row := range rows {
-		organizations = append(organizations, Organization{ID: row.ID, Name: row.Name, Role: row.Role, CreatedAt: row.CreatedAt.Time})
-	}
-	return Identity{User: User{ID: user.ID, Email: user.Email, Name: user.Name, CreatedAt: user.CreatedAt.Time}, Organizations: organizations}, nil
 }
 
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
@@ -382,12 +299,12 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	identity, err := h.identity(r, h.queries, user)
+	result, err := h.service.Identity(r.Context(), user)
 	if err != nil {
 		h.internal(w, r, err)
 		return
 	}
-	httpx.JSON(w, 200, identity)
+	httpx.JSON(w, 200, mapIdentity(result))
 }
 
 func (h *Handler) organizations(w http.ResponseWriter, r *http.Request) {
@@ -411,20 +328,25 @@ func (h *Handler) organizations(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, 400, "validation_failed", "Offset must be a non-negative integer.")
 		return
 	}
-	rows, err := h.queries.ListUserOrganizations(r.Context(), store.ListUserOrganizationsParams{UserID: user.ID, Limit: int32(limit), Offset: int32(offset)})
+	items, err := h.service.Organizations(r.Context(), user.ID, int32(limit), int32(offset))
 	if err != nil {
 		h.internal(w, r, err)
 		return
 	}
-	items := make([]Organization, 0, len(rows))
-	for _, row := range rows {
-		items = append(items, Organization{ID: row.ID, Name: row.Name, Role: row.Role, CreatedAt: row.CreatedAt.Time})
+	organizations := make([]Organization, 0, len(items))
+	for _, item := range items {
+		organizations = append(organizations, Organization{
+			ID:        item.ID,
+			Name:      item.Name,
+			Role:      item.Role,
+			CreatedAt: item.CreatedAt,
+		})
 	}
 	httpx.JSON(w, 200, struct {
 		Items  []Organization `json:"items"`
 		Limit  int64          `json:"limit"`
 		Offset int64          `json:"offset"`
-	}{items, limit, offset})
+	}{organizations, limit, offset})
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
@@ -432,8 +354,7 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	cookie, _ := r.Cookie(h.cookieName("session"))
-	hash := sha256.Sum256([]byte(cookie.Value))
-	if err := h.queries.DeleteSession(r.Context(), hash[:]); err != nil {
+	if err := h.service.Logout(r.Context(), cookie.Value); err != nil {
 		h.internal(w, r, err)
 		return
 	}
@@ -474,9 +395,33 @@ func errorType(err error) string {
 	if errors.Is(err, context.Canceled) {
 		return "canceled"
 	}
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return "database_" + pgErr.Code
+	var storeErr *identity.StoreError
+	if errors.As(err, &storeErr) {
+		if storeErr.Code != "" {
+			return "database_" + storeErr.Code
+		}
+		return "database"
 	}
 	return "internal"
+}
+
+func mapIdentity(value identity.Identity) Identity {
+	organizations := make([]Organization, 0, len(value.Organizations))
+	for _, organization := range value.Organizations {
+		organizations = append(organizations, Organization{
+			ID:        organization.ID,
+			Name:      organization.Name,
+			Role:      organization.Role,
+			CreatedAt: organization.CreatedAt,
+		})
+	}
+	return Identity{
+		User: User{
+			ID:        value.User.ID,
+			Email:     value.User.Email,
+			Name:      value.User.Name,
+			CreatedAt: value.User.CreatedAt,
+		},
+		Organizations: organizations,
+	}
 }

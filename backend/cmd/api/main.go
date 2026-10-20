@@ -14,9 +14,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"numdock/backend/db"
-	"numdock/backend/internal/config"
+	identitypostgres "numdock/backend/internal/identity/postgres"
+	"numdock/backend/internal/platform/config"
 	"numdock/backend/internal/server"
-	"numdock/backend/internal/store"
 )
 
 func main() {
@@ -67,7 +67,7 @@ func run(logger *slog.Logger) error {
 		select {
 		case <-ticker.C:
 			cleanupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-			q := store.New(pool)
+			q := identitypostgres.New(pool)
 			if err := q.PruneAuthLimits(cleanupCtx); err != nil {
 				logger.Warn("auth limit cleanup failed")
 			}

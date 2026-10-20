@@ -1,4 +1,4 @@
-package server
+package httpserver
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"numdock/backend/internal/httpx"
+	"numdock/backend/internal/platform/httpx"
 )
 
 type countingRecorder struct {
@@ -29,7 +29,7 @@ func testLogger(logs *bytes.Buffer) *slog.Logger {
 
 func TestRequestIDIgnoresClientValue(t *testing.T) {
 	var observed string
-	handler := requestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := RequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		observed = httpx.RequestID(r.Context())
 		w.WriteHeader(http.StatusNoContent)
 	}))
@@ -49,7 +49,7 @@ func TestRequestIDIgnoresClientValue(t *testing.T) {
 
 func TestLoggingSetsSafetyHeadersAndLogsRequest(t *testing.T) {
 	var logs bytes.Buffer
-	handler := requestID(logging(testLogger(&logs))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := RequestID(Logging(testLogger(&logs))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 	})))
 	rec := httptest.NewRecorder()
@@ -105,7 +105,7 @@ func TestRecoverer(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var logs bytes.Buffer
-			handler := requestID(recoverer(testLogger(&logs))(tc.handler))
+			handler := RequestID(Recoverer(testLogger(&logs))(tc.handler))
 			rec := &countingRecorder{ResponseRecorder: httptest.NewRecorder()}
 			handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/v1/test", nil))
 
@@ -137,7 +137,7 @@ func TestRecoverer(t *testing.T) {
 func TestTimeout(t *testing.T) {
 	t.Run("writes gateway timeout when handler returns without response", func(t *testing.T) {
 		var logs bytes.Buffer
-		handler := requestID(logging(testLogger(&logs))(timeout(20 * time.Millisecond)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := RequestID(Logging(testLogger(&logs))(Timeout(20 * time.Millisecond)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 		}))))
 		rec := &countingRecorder{ResponseRecorder: httptest.NewRecorder()}
@@ -165,7 +165,7 @@ func TestTimeout(t *testing.T) {
 	})
 
 	t.Run("does not overwrite a response already written by handler", func(t *testing.T) {
-		handler := requestID(timeout(20 * time.Millisecond)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler := RequestID(Timeout(20 * time.Millisecond)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			<-r.Context().Done()
 			httpx.Fail(w, r, http.StatusInternalServerError, "internal_error", "already written")
 		})))

@@ -23,8 +23,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"numdock/backend/db"
-	"numdock/backend/internal/auth"
-	"numdock/backend/internal/config"
+	identityhttp "numdock/backend/internal/identity/httpapi"
+	"numdock/backend/internal/platform/config"
 	"numdock/backend/internal/server"
 )
 
@@ -175,7 +175,7 @@ func token(t *testing.T, f fixture, client *http.Client) string {
 	return data.Token
 }
 
-func register(t *testing.T, f fixture, client *http.Client, csrf, email, name string) auth.Identity {
+func register(t *testing.T, f fixture, client *http.Client, csrf, email, name string) identityhttp.Identity {
 	t.Helper()
 	body, _ := json.Marshal(map[string]string{"email": email, "password": "a sufficiently long passphrase", "name": "Alex", "organization_name": name})
 	status, data, header := request(t, client, "POST", f.server.URL+"/v1/auth/register", csrf, string(body), "http://client.test")
@@ -188,7 +188,7 @@ func register(t *testing.T, f fixture, client *http.Client, csrf, email, name st
 	if bytes.Contains(data, []byte("password")) {
 		t.Fatal("password leaked in response")
 	}
-	var identity auth.Identity
+	var identity identityhttp.Identity
 	if err := json.Unmarshal(data, &identity); err != nil {
 		t.Fatal(err)
 	}

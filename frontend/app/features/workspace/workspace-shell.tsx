@@ -126,6 +126,7 @@ function NavigationGroup({
             return (
               <AnimatedSidebarMenuItem key={item.to}>
                 <AnimatedSidebarMenuButton
+                  className="min-h-11 md:min-h-9"
                   icon={<Icon className="size-4" />}
                   isActive={active}
                   onSelect={() => void navigate(item.to)}
@@ -165,7 +166,7 @@ function AccountMenu({
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t("workspace.accountMenu")}
-        className="flex h-9 items-center gap-2 rounded-md px-1.5 text-sm outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+        className="flex h-11 items-center gap-2 rounded-md px-1.5 text-sm outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
       >
         <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-semibold text-primary">
           {initials(identity.user.name)}
@@ -239,7 +240,7 @@ export function WorkspaceShell({
           <div className="flex items-center justify-between gap-2">
             <AnimatedSidebarClose
               aria-label={t("common.closeSidebar")}
-              className="order-last md:hidden"
+              className="order-last size-11 md:hidden"
             >
               <X className="size-4" aria-hidden="true" />
             </AnimatedSidebarClose>
@@ -307,7 +308,7 @@ export function WorkspaceShell({
           <div className="flex min-w-0 items-center gap-2">
             <AnimatedSidebarTrigger
               aria-label={t("common.toggleSidebar")}
-              className="md:hidden"
+              className="size-11 md:hidden"
             >
               <Menu className="size-4" aria-hidden="true" />
             </AnimatedSidebarTrigger>

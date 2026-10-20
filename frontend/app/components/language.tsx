@@ -34,6 +34,7 @@ export function LanguageMenu() {
           <Button
             variant="ghost"
             size="icon"
+            className="size-11 sm:size-10"
             aria-label={t("common.language")}
             disabled={busy}
           >

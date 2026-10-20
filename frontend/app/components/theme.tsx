@@ -29,6 +29,7 @@ export function ThemeToggle() {
           <Button
             variant="ghost"
             size="icon"
+            className="size-11 sm:size-10"
             aria-label={t(
               theme === "dark"
                 ? "common.themeDarkLabel"

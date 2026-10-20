@@ -3,8 +3,6 @@ package httpx
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/go-chi/chi/v5/middleware"
 )
 
 type Error struct {
@@ -20,5 +18,5 @@ func JSON(w http.ResponseWriter, status int, value any) {
 }
 
 func Fail(w http.ResponseWriter, r *http.Request, status int, code, message string) {
-	JSON(w, status, Error{Code: code, Message: message, RequestID: middleware.GetReqID(r.Context())})
+	JSON(w, status, Error{Code: code, Message: message, RequestID: RequestID(r.Context())})
 }

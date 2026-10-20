@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -184,10 +185,20 @@ func (h *Handler) readCredentials(w http.ResponseWriter, r *http.Request, regist
 		c.Email, c.Password = login.Email, login.Password
 	}
 	if decodeErr != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(decodeErr, &maxBytesErr) {
+			httpx.Fail(w, r, http.StatusRequestEntityTooLarge, "payload_too_large", "Request body is too large.")
+			return c, false
+		}
 		httpx.Fail(w, r, 400, "invalid_request", "Enter valid account details.")
 		return c, false
 	}
 	if err := decoder.Decode(new(any)); err != io.EOF {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			httpx.Fail(w, r, http.StatusRequestEntityTooLarge, "payload_too_large", "Request body is too large.")
+			return c, false
+		}
 		httpx.Fail(w, r, 400, "invalid_request", "Only one JSON object is allowed.")
 		return c, false
 	}
@@ -198,7 +209,7 @@ func (h *Handler) readCredentials(w http.ResponseWriter, r *http.Request, regist
 		return c, false
 	}
 	if err := validatePassword(c.Password); err != nil {
-		httpx.Fail(w, r, 400, "validation_failed", err.Error())
+		httpx.Fail(w, r, 400, "validation_failed", "Use a password between 12 and 128 characters.")
 		return c, false
 	}
 	c.Name, c.OrganizationName = strings.TrimSpace(c.Name), strings.TrimSpace(c.OrganizationName)
@@ -431,12 +442,38 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) internal(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		h.logger.WarnContext(r.Context(), "identity request timed out",
+			"error_type", errorType(err),
+			"request_id", httpx.RequestID(r.Context()),
+		)
+		httpx.Fail(w, r, http.StatusGatewayTimeout, "request_timeout", "The request took too long. Please try again.")
+		return
+	case errors.Is(err, context.Canceled):
+		// The client is gone; writing a response is pointless and can race with
+		// the connection being closed.
+		h.logger.InfoContext(r.Context(), "identity request canceled",
+			"error_type", errorType(err),
+			"request_id", httpx.RequestID(r.Context()),
+		)
+		return
+	}
 	// Database errors can contain submitted values. Log only their type, never their text.
-	h.logger.ErrorContext(r.Context(), "identity request failed", "error_type", errorType(err))
+	h.logger.ErrorContext(r.Context(), "identity request failed",
+		"error_type", errorType(err),
+		"request_id", httpx.RequestID(r.Context()),
+	)
 	httpx.Fail(w, r, 500, "internal_error", "We could not complete this request. Please try again.")
 }
 
 func errorType(err error) string {
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "deadline_exceeded"
+	}
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
+	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
 		return "database_" + pgErr.Code

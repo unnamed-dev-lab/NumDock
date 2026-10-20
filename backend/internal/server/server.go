@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"numdock/backend/internal/auth"
@@ -15,37 +14,18 @@ import (
 	"numdock/backend/internal/httpx"
 )
 
+const requestTimeout = 15 * time.Second
+
 func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler, error) {
 	identity, err := auth.New(pool, c.AppOrigin, c.SecureCookies, logger)
 	if err != nil {
 		return nil, err
 	}
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID)
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			started := time.Now()
-			w.Header().Set("X-Request-ID", middleware.GetReqID(r.Context()))
-			w.Header().Set("Cache-Control", "no-store")
-			w.Header().Set("X-Content-Type-Options", "nosniff")
-			w.Header().Set("Referrer-Policy", "no-referrer")
-			wrapped := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
-			next.ServeHTTP(wrapped, r)
-			logger.InfoContext(r.Context(), "http request", "method", r.Method, "status", wrapped.Status(), "request_id", middleware.GetReqID(r.Context()), "duration_ms", time.Since(started).Milliseconds())
-		})
-	})
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			defer func() {
-				if recover() != nil {
-					logger.ErrorContext(r.Context(), "request panic", "request_id", middleware.GetReqID(r.Context()))
-					httpx.Fail(w, r, 500, "internal_error", "We could not complete this request.")
-				}
-			}()
-			next.ServeHTTP(w, r)
-		})
-	})
-	r.Use(middleware.Timeout(15 * time.Second))
+	r.Use(requestID)
+	r.Use(logging(logger))
+	r.Use(recoverer(logger))
+	r.Use(timeout(requestTimeout))
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.JSON(w, 200, struct {
 			Status string `json:"status"`

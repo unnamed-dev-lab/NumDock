@@ -119,6 +119,65 @@ Requests are cancelled after 15 seconds. The API returns `504
 request_timeout` when a handler observes the timeout. If a response has
 already started, it is not overwritten.
 
+## Generating a TypeScript SDK with Hey API
+
+The contract is intentionally strict enough for client generation: every
+operation has an `operationId`, explicit response statuses, typed request and
+response bodies, a stable `ErrorCode` union, and required CSRF header
+parameters. Operations that use the cookie session also declare the `Session`
+security scheme.
+
+Generate into a separate folder (this does not add a dependency to the
+application):
+
+```bash
+pnpm dlx --package=@hey-api/openapi-ts@0.99.0 --package=typescript@5.9.3 \
+  openapi-ts \
+  -i backend/openapi/openapi.yaml \
+  -o frontend/app/lib/api/heyapi \
+  -c @hey-api/client-fetch
+```
+
+The generated SDK was checked with `tsc --noEmit` using strict TypeScript
+5.9.3. For a browser client, include cookies and point the base URL at the
+same origin:
+
+```ts
+import { client } from "./heyapi/client.gen";
+import { getCsrfToken, register } from "./heyapi/sdk.gen";
+
+client.setConfig({
+  baseUrl: window.location.origin,
+  credentials: "include",
+});
+
+const { data: csrf } = await getCsrfToken({ throwOnError: true });
+await register({
+  body: {
+    email: "alex@example.com",
+    password: "a sufficiently long passphrase",
+    name: "Alex",
+    organization_name: "Alpha",
+  },
+  headers: {
+    "X-CSRF-Token": csrf.token,
+  },
+  throwOnError: true,
+});
+```
+
+`Origin` is optional in the generated types because browsers set it
+automatically; non-browser clients must provide it explicitly. Do not store
+the session token or CSRF token in localStorage.
+
+## Scalar display language
+
+Scalar's `localization.locale` translates its own controls, buttons, search,
+and status text. It does not translate OpenAPI `summary`, `description`, or
+tag strings. The API contract content in this repository is English; a
+fully localized API reference would require a separate translated contract
+whose paths, operations, statuses, and schemas stay in parity with this one.
+
 ## Related source
 
 - Contract tests: `backend/internal/server/integration_test.go`,

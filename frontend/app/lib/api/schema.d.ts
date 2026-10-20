@@ -204,16 +204,14 @@ export interface components {
             /** @enum {string} */
             status: "ok" | "ready";
         };
+        /**
+         * @description Stable machine-readable error code.
+         * @example validation_failed
+         * @enum {string}
+         */
+        ErrorCode: "validation_failed" | "invalid_request" | "unsupported_media_type" | "payload_too_large" | "csrf_failed" | "account_unavailable" | "invalid_credentials" | "unauthenticated" | "rate_limited" | "not_found" | "method_not_allowed" | "not_ready" | "request_timeout" | "internal_error";
         Error: {
-            /**
-             * @description Stable machine-readable code. Current values include:
-             *     validation_failed, invalid_request, unsupported_media_type,
-             *     payload_too_large, csrf_failed, account_unavailable,
-             *     invalid_credentials, unauthenticated, rate_limited, not_found,
-             *     method_not_allowed, not_ready, request_timeout, internal_error.
-             * @example validation_failed
-             */
-            code: string;
+            code: components["schemas"]["ErrorCode"];
             /**
              * @description User-safe message. Do not parse this field for control flow; use code.
              * @example Enter a valid email address.
@@ -439,6 +437,11 @@ export interface components {
         };
     };
     parameters: {
+        /**
+         * @description Browser requests send this header automatically; non-browser clients
+         *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+         */
+        Origin: string;
         /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
         CSRF: string;
         /** @description Maximum number of organizations to return. */
@@ -556,6 +559,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /**
+                 * @description Browser requests send this header automatically; non-browser clients
+                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+                 */
+                Origin?: components["parameters"]["Origin"];
                 /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };
@@ -593,6 +601,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /**
+                 * @description Browser requests send this header automatically; non-browser clients
+                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+                 */
+                Origin?: components["parameters"]["Origin"];
                 /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };
@@ -630,6 +643,11 @@ export interface operations {
         parameters: {
             query?: never;
             header: {
+                /**
+                 * @description Browser requests send this header automatically; non-browser clients
+                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+                 */
+                Origin?: components["parameters"]["Origin"];
                 /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };

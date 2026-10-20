@@ -146,6 +146,7 @@ paths:
         commits. The browser must send an `Origin` header that exactly matches
         `APP_ORIGIN`.
       parameters:
+        - $ref: '#/components/parameters/Origin'
         - $ref: '#/components/parameters/CSRF'
       requestBody:
         required: true
@@ -193,6 +194,7 @@ paths:
         differences. The browser must send an `Origin` header that exactly
         matches `APP_ORIGIN`.
       parameters:
+        - $ref: '#/components/parameters/Origin'
         - $ref: '#/components/parameters/CSRF'
       requestBody:
         required: true
@@ -240,6 +242,7 @@ paths:
       security:
         - Session: []
       parameters:
+        - $ref: '#/components/parameters/Origin'
         - $ref: '#/components/parameters/CSRF'
       responses:
         '204':
@@ -321,6 +324,16 @@ components:
         `__Host-numdock_session` name. Browser clients must send cookies and
         must not store the session token in localStorage.
   parameters:
+    Origin:
+      name: Origin
+      in: header
+      required: false
+      description: |
+        Browser requests send this header automatically; non-browser clients
+        must send an Origin that exactly matches the backend `APP_ORIGIN`.
+      schema:
+        type: string
+        format: uri
     CSRF:
       name: X-CSRF-Token
       in: header
@@ -462,20 +475,32 @@ components:
         status:
           type: string
           enum: [ok, ready]
+    ErrorCode:
+      type: string
+      description: Stable machine-readable error code.
+      enum:
+        - validation_failed
+        - invalid_request
+        - unsupported_media_type
+        - payload_too_large
+        - csrf_failed
+        - account_unavailable
+        - invalid_credentials
+        - unauthenticated
+        - rate_limited
+        - not_found
+        - method_not_allowed
+        - not_ready
+        - request_timeout
+        - internal_error
+      example: validation_failed
     Error:
       type: object
       required: [code, message, request_id]
       additionalProperties: false
       properties:
         code:
-          type: string
-          description: |
-            Stable machine-readable code. Current values include:
-            validation_failed, invalid_request, unsupported_media_type,
-            payload_too_large, csrf_failed, account_unavailable,
-            invalid_credentials, unauthenticated, rate_limited, not_found,
-            method_not_allowed, not_ready, request_timeout, internal_error.
-          example: validation_failed
+          $ref: '#/components/schemas/ErrorCode'
         message:
           type: string
           description: User-safe message. Do not parse this field for control flow; use code.

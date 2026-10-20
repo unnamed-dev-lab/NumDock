@@ -8,12 +8,20 @@
   --background: oklch(0.98 0.004 85);
   --foreground: oklch(0.25 0.014 210);
   --surface: oklch(1 0 0);
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --success: oklch(0.47 0.11 155);
+  --success-foreground: oklch(0.99 0.002 155);
+  --warning: oklch(0.55 0.11 75);
+  --warning-foreground: oklch(0.99 0.002 75);
+  --scrim: oklch(0 0 0);
+  --theme-mask: oklch(0 0 0);
   --muted: oklch(0.951 0.006 85);
   --muted-foreground: oklch(0.46 0.014 210);
   --primary: oklch(0.37 0.055 185);
   --primary-foreground: oklch(0.99 0.002 185);
   --accent: oklch(0.93 0.017 185);
-  --accent-foreground: oklch(0.30 0.045 185);
+  --accent-foreground: oklch(0.3 0.045 185);
   --border: oklch(0.88 0.008 85);
   --input: var(--border);
   --ring: oklch(0.49 0.065 185);
@@ -34,7 +42,11 @@
   --muted: oklch(0.26 0.012 210);
   --muted-foreground: oklch(0.72 0.014 210);
   --primary: oklch(0.78 0.07 180);
-  --primary-foreground: oklch(0.20 0.025 185);
+  --primary-foreground: oklch(0.2 0.025 185);
+  --success: oklch(0.76 0.11 155);
+  --success-foreground: oklch(0.19 0.025 155);
+  --warning: oklch(0.8 0.1 80);
+  --warning-foreground: oklch(0.2 0.025 80);
   --accent: oklch(0.31 0.03 185);
   --accent-foreground: oklch(0.88 0.04 180);
   --border: oklch(0.34 0.014 210);
@@ -45,10 +57,18 @@
 }
 
 @theme inline {
-  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-scrim: var(--scrim);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-primary: var(--primary);
@@ -70,15 +90,42 @@
 }
 
 @layer base {
-  * { @apply border-border; }
-  html { @apply bg-background text-foreground font-sans antialiased; }
-  body { margin: 0; min-width: 320px; }
-  button:not(:disabled), [role="menuitemradio"]:not([data-disabled]) { cursor: pointer; }
-  ::selection { @apply bg-accent text-accent-foreground; }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+  * {
+    @apply border-border;
+  }
+  html {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  body {
+    margin: 0;
+    min-width: 320px;
+    line-height: 1.5;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  button:not(:disabled),
+  [role="menuitemradio"]:not([data-disabled]) {
+    cursor: pointer;
+  }
+  ::selection {
+    @apply bg-accent text-accent-foreground;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
 }
 
-::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 180ms;
+}
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
 }

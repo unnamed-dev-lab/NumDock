@@ -5,10 +5,13 @@
 ## 当前边界
 
 - 后端：Go + Chi，pgx + sqlc，Goose 迁移，OpenAPI 契约。
-- 前端：React 19 + TypeScript Strict，React Router 7 Framework SPA，Tailwind v4，shadcn/ui / Radix，TanStack Query，React Hook Form + Zod。
+- 前端：React 19 + TypeScript Strict，React Router 7 Framework Mode（SSR），Tailwind v4，beUI + shadcn/ui Base UI，TanStack Query，React Hook Form + Zod。
+- 组件选型严格按 beUI > Magic UI > shadcn/ui；全部通过 CLI / registry 安装，来源与定制见 `frontend/docs/component-sources.md`。项目保留 pnpm 锁文件，组件 CLI 优先用 `bunx --bun`。
 - Cookie 会话有效期 12 小时，数据库仅保存会话令牌摘要；密码使用带随机盐的 Argon2id。
 - 身份变更接口执行 Origin + CSRF 校验；认证限流记录在 PostgreSQL，跨进程共享。当前直接使用连接来源 IP，不信任转发头；部署反向代理前需配置并测试可信代理策略。
-- 号码、订单、供应商、短信、账本、River、Redis、OpenTelemetry、多语言资源和公开营销页面尚未实现。不会显示虚假库存或交易数据。
+- 界面支持英文与简体中文，使用 i18next + react-i18next；语言偏好通过 Cookie 持久化，并同步 SSR 首屏、页面标题、校验与错误提示。维护说明见 `frontend/docs/i18n.md`。
+- 号码、订单、供应商、短信、账本、River、Redis、OpenTelemetry 和公开营销页面尚未实现。不会显示虚假库存或交易数据。
+- 工作台只展示来自身份服务的真实用户与组织数据；未接入的号码、消息、账单和 API 页面使用明确的“未接入 / 计划中”状态，不显示模拟库存、验证码、余额或运营商状态。
 - 目前还没有邮箱验证、密码找回、邀请成员、API Key 管理或生产合规工作流。这是开发基础切片，不是完整生产发布版本。
 
 ## 目录
@@ -23,7 +26,9 @@ backend/
   db/queries/          SQL 查询源文件
   openapi/openapi.yaml 接口契约的单一事实来源
 frontend/
-  app/components/ui/   官方 shadcn 组件，已接入项目令牌
+  app/components/motion/ CLI 安装的 beUI 按钮、输入、主题、侧边栏
+  app/components/ui/   CLI 安装的 shadcn Base UI 菜单和表格
+  app/features/        认证、工作台壳与只读身份/组织页面组合
   app/lib/api/         生成类型与类型化客户端
   app/app.css          集中式明暗主题变量
   tests/              Playwright 浏览器流程
@@ -79,6 +84,8 @@ pnpm test:e2e
 ```
 
 未设置 `TEST_DATABASE_URL` 时，PostgreSQL 集成测试会明确跳过；不能将其视为数据库测试通过。浏览器注册流程会在开发库留下带 `browser-` 前缀的测试账户。
+
+前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；未接入模块的页面只呈现真实身份数据与明确的未连接状态。
 
 SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`；OpenAPI 变更后在 `frontend/` 运行 `pnpm generate:api`。提交源文件和生成结果，不手动修改生成类型。
 

@@ -19,7 +19,7 @@
 - 上述手法只有在明确的产品需求或设计参考支持时才能使用，不能作为默认美化方案。
 - 工具型页面优先呈现工作内容与操作，避免把每个功能页做成营销落地页。留白、动效和装饰必须有具体用途。
 - 保持统一的字体层级、间距、边框、圆角、图标风格与内容密度；同类操作采用一致的组件和交互。
-- 产品初期使用准确、简洁的英文界面，预留中文国际化资源，使用真实业务内容。禁止空泛宣传语、无依据的统计数字，以及用 Emoji 代替正式功能图标。
+- 产品界面支持英文与简体中文，文案准确、简洁，使用真实业务内容。禁止空泛宣传语、无依据的统计数字，以及用 Emoji 代替正式功能图标。
 - 不凭空发明品牌配色和视觉体系；缺少设计基础时先建立少量、可复用的设计令牌，再实现页面。
 
 ## 3. 颜色：CSS 变量 + Tailwind CSS
@@ -63,14 +63,30 @@ API 参考：https://developer.mozilla.org/en-US/docs/Web/API/Document/startView
 
 ## 5. 组件选型与复用
 
-- 前端页面、布局和交互开发必须使用共享 `ui-craft` Skill；完成较大 UI 改动后必须使用 `ui-review`。
-- 共享技能位置为 `~/.agents/skills/ui-craft/SKILL.md` 和 `~/.agents/skills/ui-review/SKILL.md`。工具未发现技能时直接读取文件；无法读取则如实说明。
-- 实现前调查已有组件、依赖、设计令牌与 `components.json`，优先复用项目组件。
-- 需要外部组件时，依次考虑适合的 shadcn/ui 基础交互、beUI 和按需使用的 Magic UI；不得为了使用库而引入库。
-- 通过 MCP 或官方文档／注册表核实组件及 API、依赖、版本兼容性和许可，不凭记忆编造组件名、安装命令或调用方式。MCP 不可用时使用官方来源并说明限制。
-- 允许组合业务组件；禁止重复手写已有成熟实现的 Dialog、Popover、Select、Tooltip 等基础交互。确需自写时先说明已有方案的具体缺口。
-- Dropdown、Sheet、Tabs、Accordion、Modal 等同样必须复用成熟实现；如后续引入 AI 对话，优先核实并使用 assistant-ui 的组件与生态能力，不自写已有的基础对话交互。
-- 新项目优先考虑 React 19、Tailwind CSS v4、shadcn/ui；已有项目遵循实际技术栈，不为套用偏好升级或迁移。
+### 优先级（强制）
+
+- 先调查项目已有组件、依赖、令牌与 `components.json`；只复用符合当前规范的组件。
+- **beUI > Magic UI > shadcn/ui** 是默认且严格的选型顺序。同一需求必须先查 beUI，再查 Magic UI，最后才用 shadcn/ui；只有上一级没有对应实现或存在已说明的具体场景缺口时才能降级。
+- beUI 优先用于按钮、动效、交互、侧边栏、Toast、命令面板和 Agent 界面；Magic UI 优先补充合适的视觉增强；shadcn/ui 补齐表单、菜单、基础 primitives 和数据表格。不要因习惯跳过上一级，也不要强行引入装饰性组件。
+- AI 对话线程、消息列表、附件等优先 assistant-ui。新增库同样遵守成熟组件优先和官方安装流程。
+
+### Base UI 与安装来源（强制）
+
+- shadcn/ui **严格优先 Base UI**：核实 Base UI 文档及 registry item，不能默认安装 Radix 变体。
+- 本项目已按用户要求通过 CLI 将旧 Radix 基础组件迁移到 Base UI。后续保持 Base UI，不重新引入 Radix，不混用两套基础交互；组件更新需逐项验证。
+- **所有组件库组件必须通过官方 CLI / registry 安装后再定制**。禁止手动新建、手写、从网页或其他项目复制组件源码，禁止将 MCP 返回的源码手动落盘。MCP 和文档只用于检索、比较及 API 核验，不能代替安装。
+- 禁止直接引入 `radix-ui` 或 `@radix-ui/react-*` 自行拼装 Dialog、Popover、Select、Tooltip、Dropdown、Sheet、Tabs、Accordion、Modal 等已有实现；“更轻量”“更可控”不是绕过 CLI 的理由。
+- 允许组合业务组件、拆分页面及业务 hooks；不创建第二套基础组件库。确需自写底层交互，必须先指出所有候选库无法满足的具体缺口。
+- 安装命令优先 `bunx --bun <package>`；本项目明确使用 pnpm，依赖安装、运行脚本及 lockfile 继续用 pnpm，不生成 bun/npm/yarn 锁文件。
+- shadcn 用官方 `shadcn@latest add`；beUI 用 MCP 返回的 `@beui/<component>` 安装命令；Magic UI 用官方 registry URL／命名空间；assistant-ui 用官方 CLI／registry。具体名称和选项必须实时核验，不猜测。
+- 在 `docs/component-sources.md` 记录实际安装命令、CLI 版本、来源、优先级降级原因及业务定制；不得把未执行的命令写成安装事实。
+- 四个库的 MCP 均优先检索；以当前会话可调用工具为准。缺失工具时用官方文档／registry 并说明限制，不声称使用过不可调用的 MCP。
+
+### 技能与工程边界
+
+- 页面和交互开发使用 `ui-craft`；设计规划使用 `ui-ux-pro-max` 本地检索；本次架构与组件重构使用 `refactor`；较大 UI 修改后使用 `ui-review`。
+- 技能共享位置为 `~/.agents/skills/`，也可能链接到 `~/.codex/skills/`。使用发现到的 `SKILL.md`，无法读取时如实说明。
+- 核实真实 API、依赖、许可及 React / Tailwind 兼容性，遵循项目现有版本；组件迁移不顺带升级框架或更改业务契约。
 
 ## 6. 验收要求
 
@@ -84,7 +100,7 @@ API 参考：https://developer.mozilla.org/en-US/docs/Web/API/Document/startView
 ## 7. 前端架构与业务边界
 
 - 初始化采用 React 19、TypeScript Strict Mode、React Router 7 Framework Mode、Tailwind CSS v4，包管理使用 pnpm。实施时从官方文档核实稳定兼容版本。
-- 按需采用 shadcn/ui、beUI、Magic UI、TanStack Query v5、Zustand、TanStack Table、React Hook Form + Zod、Lucide React 和 Motion，不为满足列表一次性安装所有依赖。
+- 按需采用 beUI、Magic UI、shadcn/ui（Base UI）、TanStack Query v5、Zustand、TanStack Table、React Hook Form + Zod、Lucide React 和 Motion；组件库顺序遵循第 5 节，不为满足列表一次性安装所有依赖。
 - 公开营销页面使用 SSG / Prerendering；Dashboard 和 Admin 使用 CSR。核心业务由独立 Go API 负责，不增加没有实际收益的 Next.js 服务层。
 - TanStack Query 是服务端状态的主要且统一的缓存层；使用规范的 Query Keys、Mutation 和缓存失效。SSE 按资源更新或失效相关缓存，避免全站重取。
 - Zustand 仅管理主题、侧边栏、当前 Workspace、局部布局和显示偏好等客户端 UI 状态，不复制服务端业务状态作为权威数据。
@@ -96,3 +112,13 @@ API 参考：https://developer.mozilla.org/en-US/docs/Web/API/Document/startView
 - Dashboard 和 Admin 禁止搜索引擎索引，但索引控制不能代替服务端认证授权。
 - Mock 模式必须明确标识，不得以静态数据伪装实时库存、价格、供应商连接、交易成功率或真实服务。
 - 随功能建立 Vitest、React Testing Library 和 Playwright 验证，重点覆盖实际业务流程、SSE 重连及断网／超时交互。
+
+## 8. 国际化（i18n）
+
+- 使用现有 `i18next + react-i18next`。所有用户可见文案、校验、错误、页面元信息及无障碍名称从 `app/lib/i18n/locales/` 获取；新增键同步补齐 `en.json` 和 `zh-CN.json`，使用稳定语义键，禁止散落语言条件表达式。
+- 翻译键有 TypeScript 检查；分组采用 `common.*`、`auth.*`、`workspace.*`、`errors.*` 前缀。变量使用插值，数量使用复数规则，不拼接不同语言的句子。
+- 语言解析顺序为合法 `numdock.locale` Cookie、受支持的 `Accept-Language`、英文回退。SSR 按请求创建独立实例，首屏 HTML、`lang`、元信息和 hydration 使用同一语言，禁止服务端共享可变语言单例。
+- 语言切换复用已有 CLI 安装的 Base UI 菜单，通过 Cookie 与根 loader 重新验证同步语言；保留表单、查询缓存和身份会话，不创建第二份 Zustand 语言状态。
+- API 错误按稳定 `code` 映射翻译；未知错误使用本地化通用提示，不按英文消息匹配或直接展示服务端诊断。用户输入、组织名称、消息正文、资源 ID、权限标识等业务数据不作为翻译键。
+- 日期使用当前语言的 `Intl` 格式，并显式保留 UTC，避免 SSR 与浏览器时区不同。金额显示遵循实际业务币种，语言切换不转换币种或参与金额计算。
+- 提交前执行 `pnpm lint`（包含资源键与插值检查）、类型检查和相关 Playwright 测试，覆盖 SSR 首屏、切换及刷新持久化、校验与错误状态、移动端。

@@ -1,4 +1,9 @@
+import type { MetaFunction } from "react-router";
+import { localizedMeta } from "@/lib/i18n/meta";
 import { AuthPage } from "@/components/auth-page";
 
-export const meta = () => [{ title: "Create a workspace · NumDock" }, { name: "description", content: "Create your NumDock account and organization workspace." }];
-export default function Register() { return <AuthPage mode="register" />; }
+export const meta: MetaFunction = ({ matches }) =>
+  localizedMeta(matches, "auth.registerTitle", "auth.registerDescription");
+export default function Register() {
+  return <AuthPage mode="register" />;
+}

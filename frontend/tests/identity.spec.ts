@@ -1,0 +1,123 @@
+import { expect, test } from "@playwright/test";
+
+test("registration, persistent session, revocation and sign in", async ({ page }) => {
+  const email = `browser-${Date.now()}@example.com`;
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.goto("/register");
+  await page.getByLabel("Full name").fill("Alex Morgan");
+  await page.getByLabel("Workspace name").fill("Harbor Studio");
+  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill("a browser test passphrase");
+  await page.getByRole("button", { name: "Create workspace", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  await expect(page.getByRole("heading", { name: "Harbor Studio" })).toBeVisible();
+  await expect(page.getByText(email).last()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Harbor Studio" })).toBeVisible();
+  await page.screenshot({ path: "test-results/workspace-desktop.png", fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.getByRole("heading", { name: "Harbor Studio" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/workspace-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/app");
+  await expect(page).toHaveURL(/\/login$/);
+  await page.getByLabel("Email address").fill(email);
+  await page.getByLabel("Password", { exact: true }).fill("an incorrect browser password");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText("Email or password is incorrect.");
+  await page.getByLabel("Password", { exact: true }).fill("a browser test passphrase");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
+  expect(errors).toEqual([]);
+});
+
+test("theme uses native transitions, persists, follows system and supports keyboard", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "no-preference" });
+  await page.goto("/login");
+  await expect(page.getByRole("button", { name: "Theme: system" })).toBeVisible();
+  await page.evaluate(() => {
+    const original = document.startViewTransition.bind(document);
+    Object.assign(window, { transitionCalls: 0 });
+    document.startViewTransition = (...args: Parameters<typeof original>) => {
+      Reflect.set(window, "transitionCalls", Number(Reflect.get(window, "transitionCalls")) + 1);
+      return original(...args);
+    };
+  });
+  await page.getByRole("button", { name: "Theme: system" }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Theme: dark" })).toBeEnabled();
+  expect(await page.evaluate(() => Reflect.get(window, "transitionCalls"))).toBe(1);
+  await page.screenshot({ path: "test-results/login-dark.png", fullPage: true });
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Theme: dark" })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Theme: dark" }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitemradio", { name: "System", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Theme: system" })).toBeEnabled();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+});
+
+test("reduced motion and unsupported API switch theme without animation", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light", reducedMotion: "reduce" });
+  await page.goto("/login");
+  await page.evaluate(() => {
+    Object.assign(window, { transitionCalls: 0 });
+    document.startViewTransition = () => {
+      Reflect.set(window, "transitionCalls", Number(Reflect.get(window, "transitionCalls")) + 1);
+      throw new Error("must not animate reduced motion");
+    };
+  });
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.getByRole("button", { name: "Theme: system" }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  expect(await page.evaluate(() => Reflect.get(window, "transitionCalls"))).toBe(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => { Object.defineProperty(document, "startViewTransition", { value: undefined, configurable: true }); });
+  await page.getByRole("button", { name: "Theme: dark" }).click();
+  await page.getByRole("menuitemradio", { name: "Light", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(errors).toEqual([]);
+});
+
+test("validation, network error and narrow screen", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/register");
+  await page.getByRole("button", { name: "Create workspace", exact: true }).click();
+  await expect(page.getByText("Enter your name.", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Full name")).toBeFocused();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: "test-results/register-mobile.png", fullPage: true });
+  await page.goto("/login");
+  await page.route("**/v1/auth/csrf", route => route.abort());
+  await page.getByLabel("Email address").fill("offline@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("a browser test passphrase");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Unable to connect");
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
+});
+
+test("transition failure and unavailable storage do not block theme changes", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get: () => { throw new DOMException("Storage unavailable", "SecurityError"); } });
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference", colorScheme: "light" });
+  await page.goto("/login");
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.evaluate(() => { document.startViewTransition = () => { throw new Error("transition unavailable"); }; });
+  await page.getByRole("button", { name: "Theme: system" }).click();
+  await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await expect(page.getByRole("button", { name: "Theme: dark" })).toBeEnabled();
+  expect(errors).toEqual([]);
+});

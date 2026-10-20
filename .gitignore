@@ -1,0 +1,14 @@
+.cache/
+.tools/
+.local/
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/build/
+frontend/.react-router/
+frontend/playwright-report/
+frontend/test-results/
+backend/bin/
+*.log
+*.exe

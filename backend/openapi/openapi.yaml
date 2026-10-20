@@ -1,0 +1,239 @@
+openapi: 3.0.3
+info:
+  title: NumDock API
+  version: 0.1.0
+  description: |
+    Identity and organization slice. Browser mutations require an exact Origin
+    match, a CSRF cookie, and the X-CSRF-Token returned by GET /v1/auth/csrf.
+    Secure deployments use __Host- prefixed cookies. All responses are no-store.
+servers:
+  - url: /
+tags:
+  - name: Identity
+  - name: Organizations
+paths:
+  /healthz:
+    get:
+      operationId: health
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /readyz:
+    get:
+      operationId: readiness
+      responses:
+        '200':
+          description: Database is reachable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          $ref: '#/components/responses/Error'
+  /v1/auth/csrf:
+    get:
+      tags: [Identity]
+      operationId: getCSRFToken
+      responses:
+        '200':
+          description: CSRF token; also sets an HttpOnly SameSite cookie
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token]
+                properties:
+                  token:
+                    type: string
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/auth/register:
+    post:
+      tags: [Identity]
+      operationId: register
+      parameters:
+        - $ref: '#/components/parameters/CSRF'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Registration'
+      responses:
+        '201':
+          description: User, owner membership, organization and session created atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/auth/login:
+    post:
+      tags: [Identity]
+      operationId: login
+      parameters:
+        - $ref: '#/components/parameters/CSRF'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Credentials'
+      responses:
+        '200':
+          description: Signed in; prior session cookie is rotated and revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/auth/logout:
+    post:
+      tags: [Identity]
+      operationId: logout
+      security:
+        - Session: []
+      parameters:
+        - $ref: '#/components/parameters/CSRF'
+      responses:
+        '204':
+          description: Session revoked in PostgreSQL and cookie removed
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/me:
+    get:
+      tags: [Identity]
+      operationId: getIdentity
+      security:
+        - Session: []
+      responses:
+        '200':
+          description: Current authenticated user and their own memberships
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Identity'
+        default:
+          $ref: '#/components/responses/Error'
+  /v1/organizations:
+    get:
+      tags: [Organizations]
+      operationId: listOrganizations
+      security:
+        - Session: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - name: offset
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+      responses:
+        '200':
+          description: Own organizations, ordered by creation time and ID ascending
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, limit, offset]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Organization'
+                  limit: { type: integer }
+                  offset: { type: integer }
+        default:
+          $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    Session:
+      type: apiKey
+      in: cookie
+      name: numdock_session
+      description: HttpOnly cookie. Named __Host-numdock_session when COOKIE_SECURE is true.
+  parameters:
+    CSRF:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+  responses:
+    Error:
+      description: Request failed; see code and request_id. Rate limits return Retry-After.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ok, ready] }
+    Error:
+      type: object
+      required: [code, message, request_id]
+      properties:
+        code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+    Credentials:
+      type: object
+      required: [email, password]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          description: Contains 12–128 Unicode code points; spaces are allowed.
+          minLength: 12
+          maxLength: 128
+    Registration:
+      type: object
+      required: [email, password, name, organization_name]
+      additionalProperties: false
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password:
+          type: string
+          description: Contains 12–128 Unicode code points; spaces are allowed.
+          minLength: 12
+          maxLength: 128
+        name: { type: string, minLength: 1, maxLength: 100 }
+        organization_name: { type: string, minLength: 1, maxLength: 100 }
+    User:
+      type: object
+      required: [id, email, name, created_at]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+    Organization:
+      type: object
+      required: [id, name, role, created_at]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        role: { type: string, enum: [owner, admin, member] }
+        created_at: { type: string, format: date-time }
+    Identity:
+      type: object
+      required: [user, organizations]
+      additionalProperties: false
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        organizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'

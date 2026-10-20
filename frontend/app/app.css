@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Raw colors belong only in this shared token block. */
+:root {
+  color-scheme: light;
+  --background: oklch(0.98 0.004 85);
+  --foreground: oklch(0.25 0.014 210);
+  --surface: oklch(1 0 0);
+  --muted: oklch(0.951 0.006 85);
+  --muted-foreground: oklch(0.46 0.014 210);
+  --primary: oklch(0.37 0.055 185);
+  --primary-foreground: oklch(0.99 0.002 185);
+  --accent: oklch(0.93 0.017 185);
+  --accent-foreground: oklch(0.30 0.045 185);
+  --border: oklch(0.88 0.008 85);
+  --input: var(--border);
+  --ring: oklch(0.49 0.065 185);
+  --destructive: oklch(0.48 0.16 27);
+  --destructive-foreground: oklch(0.99 0.002 27);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+  --radius: 0.5rem;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: oklch(0.19 0.009 210);
+  --foreground: oklch(0.93 0.006 85);
+  --surface: oklch(0.225 0.01 210);
+  --muted: oklch(0.26 0.012 210);
+  --muted-foreground: oklch(0.72 0.014 210);
+  --primary: oklch(0.78 0.07 180);
+  --primary-foreground: oklch(0.20 0.025 185);
+  --accent: oklch(0.31 0.03 185);
+  --accent-foreground: oklch(0.88 0.04 180);
+  --border: oklch(0.34 0.014 210);
+  --input: var(--border);
+  --ring: oklch(0.78 0.07 180);
+  --destructive: oklch(0.76 0.13 27);
+  --destructive-foreground: oklch(0.19 0.025 27);
+}
+
+@theme inline {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { @apply bg-background text-foreground font-sans antialiased; }
+  body { margin: 0; min-width: 320px; }
+  button:not(:disabled), [role="menuitemradio"]:not([data-disabled]) { cursor: pointer; }
+  ::selection { @apply bg-accent text-accent-foreground; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+}
+
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 180ms; }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root) { animation: none; }
+}

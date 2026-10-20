@@ -2,6 +2,30 @@ package config
 
 import "testing"
 
+func TestTrustedProxyList(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+	t.Setenv("APP_ORIGIN", "http://localhost:3000")
+	t.Setenv("COOKIE_SECURE", "false")
+	t.Setenv("TRUSTED_PROXIES", " 127.0.0.1, 10.0.0.0/8 ,, ")
+
+	c, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.TrustedProxies) != 2 || c.TrustedProxies[0] != "127.0.0.1" || c.TrustedProxies[1] != "10.0.0.0/8" {
+		t.Fatalf("TrustedProxies = %#v", c.TrustedProxies)
+	}
+
+	t.Setenv("TRUSTED_PROXIES", "")
+	c, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(c.TrustedProxies) != 0 {
+		t.Fatalf("TrustedProxies = %#v", c.TrustedProxies)
+	}
+}
+
 func TestProductionRequiresSecureOriginAndCookie(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://localhost/test")
 	cases := []struct {

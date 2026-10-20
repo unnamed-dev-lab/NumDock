@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"mime"
-	"net"
 	"net/http"
 	"net/mail"
 	"strconv"
@@ -27,11 +26,16 @@ import (
 )
 
 type Handler struct {
-	service *identity.Service
-	origin  string
-	secure  bool
-	logger  *slog.Logger
-	slots   chan struct{}
+	service  *identity.Service
+	origin   string
+	secure   bool
+	logger   *slog.Logger
+	slots    chan struct{}
+	clientIP ClientIPResolver
+}
+
+type ClientIPResolver interface {
+	ClientIP(*http.Request) string
 }
 
 type User struct {
@@ -60,8 +64,8 @@ type credentials struct {
 	OrganizationName string `json:"organization_name,omitempty"`
 }
 
-func New(service *identity.Service, origin string, secure bool, logger *slog.Logger) *Handler {
-	return &Handler{service: service, origin: origin, secure: secure, logger: logger, slots: make(chan struct{}, 4)}
+func New(service *identity.Service, origin string, secure bool, logger *slog.Logger, clientIP ClientIPResolver) *Handler {
+	return &Handler{service: service, origin: origin, secure: secure, logger: logger, slots: make(chan struct{}, 4), clientIP: clientIP}
 }
 
 func (h *Handler) Routes(r chi.Router) {
@@ -130,12 +134,17 @@ func (h *Handler) protect(next http.Handler) http.Handler {
 
 func (h *Handler) limit(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		host, _, err := net.SplitHostPort(r.RemoteAddr)
-		if err != nil {
+		host := ""
+		if h.clientIP != nil {
+			host = h.clientIP.ClientIP(r)
+		}
+		if host == "" {
 			host = r.RemoteAddr
 		}
 		key := sha256.Sum256([]byte("ip:" + host))
-		// Persistent counters are shared across API replicas. Never trust forwarded IP headers here.
+		// Persistent counters are shared across API replicas. The resolver only
+		// trusts forwarded headers when the immediate peer is configured as a
+		// trusted proxy.
 		count, err := h.service.ConsumeAuthLimit(r.Context(), hex.EncodeToString(key[:]))
 		if err != nil {
 			h.internal(w, r, err)

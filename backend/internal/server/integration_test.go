@@ -35,6 +35,11 @@ type fixture struct {
 
 func setup(t *testing.T) fixture {
 	t.Helper()
+	return setupWithConfig(t, config.Config{AppOrigin: "http://client.test"})
+}
+
+func setupWithConfig(t *testing.T, cfg config.Config) fixture {
+	t.Helper()
 	databaseURL := os.Getenv("TEST_DATABASE_URL")
 	if databaseURL == "" {
 		t.Skip("set TEST_DATABASE_URL to run PostgreSQL integration tests")
@@ -69,7 +74,7 @@ func setup(t *testing.T) fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	router, err := server.New(pool, config.Config{AppOrigin: "http://client.test"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	router, err := server.New(pool, cfg, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

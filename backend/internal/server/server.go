@@ -20,11 +20,15 @@ import (
 const requestTimeout = 15 * time.Second
 
 func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler, error) {
+	clientIP, err := httpserver.NewClientIPResolver(c.TrustedProxies)
+	if err != nil {
+		return nil, err
+	}
 	identityService, err := identity.NewService(identitypostgres.New(pool))
 	if err != nil {
 		return nil, err
 	}
-	identityHandler := identityhttp.New(identityService, c.AppOrigin, c.SecureCookies, logger)
+	identityHandler := identityhttp.New(identityService, c.AppOrigin, c.SecureCookies, logger, clientIP)
 	r := chi.NewRouter()
 	r.Use(httpserver.RequestID)
 	r.Use(httpserver.Logging(logger))

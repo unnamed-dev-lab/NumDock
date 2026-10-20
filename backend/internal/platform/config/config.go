@@ -4,17 +4,25 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"strings"
 )
 
 type Config struct {
-	DatabaseURL   string
-	Address       string
-	AppOrigin     string
-	SecureCookies bool
+	DatabaseURL    string
+	Address        string
+	AppOrigin      string
+	SecureCookies  bool
+	TrustedProxies []string
 }
 
 func Load() (Config, error) {
-	c := Config{DatabaseURL: os.Getenv("DATABASE_URL"), Address: os.Getenv("HTTP_ADDR"), AppOrigin: os.Getenv("APP_ORIGIN"), SecureCookies: os.Getenv("COOKIE_SECURE") != "false"}
+	c := Config{
+		DatabaseURL:    os.Getenv("DATABASE_URL"),
+		Address:        os.Getenv("HTTP_ADDR"),
+		AppOrigin:      os.Getenv("APP_ORIGIN"),
+		SecureCookies:  os.Getenv("COOKIE_SECURE") != "false",
+		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
+	}
 	if c.Address == "" {
 		c.Address = "127.0.0.1:8080"
 	}
@@ -33,4 +41,15 @@ func Load() (Config, error) {
 		return c, errors.New("non-local deployments require HTTPS and secure cookies")
 	}
 	return c, nil
+}
+
+func splitList(value string) []string {
+	var result []string
+	for _, item := range strings.Split(value, ",") {
+		item = strings.TrimSpace(item)
+		if item != "" {
+			result = append(result, item)
+		}
+	}
+	return result
 }

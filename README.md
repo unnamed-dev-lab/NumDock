@@ -8,7 +8,7 @@
 - 前端：React 19 + TypeScript Strict，React Router 7 Framework Mode（SSR），Tailwind v4，beUI + shadcn/ui Base UI，TanStack Query，React Hook Form + Zod。
 - 组件选型严格按 beUI > Magic UI > shadcn/ui；全部通过 CLI / registry 安装，来源与定制见 `frontend/docs/component-sources.md`。项目保留 pnpm 锁文件，组件 CLI 优先用 `bunx --bun`。
 - Cookie 会话有效期 12 小时，数据库仅保存会话令牌摘要；密码使用带随机盐的 Argon2id。
-- 身份变更接口执行 Origin + CSRF 校验；认证限流记录在 PostgreSQL，跨进程共享。当前直接使用连接来源 IP，不信任转发头；部署反向代理前需配置并测试可信代理策略。
+- 身份变更接口执行 Origin + CSRF 校验；认证限流记录在 PostgreSQL，跨进程共享。通过 `TRUSTED_PROXIES` 配置可信代理 IP/CIDR；仅当直接对端是可信代理时才解析 `X-Forwarded-For`，默认不信任转发头。
 - 界面支持英文与简体中文，使用 i18next + react-i18next；语言偏好通过 Cookie 持久化，并同步 SSR 首屏、页面标题、校验与错误提示。维护说明见 `frontend/docs/i18n.md`。
 - 号码、订单、供应商、短信、账本、River、Redis、OpenTelemetry 和公开营销页面尚未实现。不会显示虚假库存或交易数据。
 - 工作台只展示来自身份服务的真实用户与组织数据；未接入的号码、消息、账单和 API 页面使用明确的“未接入 / 计划中”状态，不显示模拟库存、验证码、余额或运营商状态。
@@ -19,11 +19,10 @@
 ```text
 backend/
   cmd/api/             API 入口与显式迁移命令
-  internal/auth/       身份、Cookie 会话、CSRF 与认证限流
-  internal/store/      sqlc 生成代码，不手动修改
-  internal/server/     HTTP 基础设施、数据库集成与响应契约测试
+  internal/identity/   身份领域：用例、HTTP 适配与 PostgreSQL 适配
+  internal/platform/   配置、HTTP 响应与通用中间件
+  internal/server/     HTTP composition root 与集成测试
   db/migrations/       数据库迁移
-  db/queries/          SQL 查询源文件
   openapi/openapi.yaml 接口契约的单一事实来源
 frontend/
   app/components/motion/ CLI 安装的 beUI 按钮、输入、主题、侧边栏
@@ -68,9 +67,9 @@ scripts/backend.ps1   Windows 后端任务入口
 
 ```powershell
 ./scripts/backend.ps1 check
-# 设置独立测试数据库后，测试会为每次运行创建并清理随机 schema。
-# 测试账号需要 CREATE SCHEMA 权限；不要指向生产数据库。
-$env:TEST_DATABASE_URL = $env:DATABASE_URL
+# 使用 .local/dev.env 时，脚本会自动把 DATABASE_URL 映射为 TEST_DATABASE_URL。
+# 如使用独立测试库，先显式设置 TEST_DATABASE_URL。
+# 测试会为每次运行创建并清理随机 schema；测试账号需要 CREATE SCHEMA 权限。
 ./scripts/backend.ps1 test
 
 cd frontend
@@ -83,7 +82,7 @@ pnpm exec playwright install chromium
 pnpm test:e2e
 ```
 
-未设置 `TEST_DATABASE_URL` 时，PostgreSQL 集成测试会明确跳过；不能将其视为数据库测试通过。浏览器注册流程会在开发库留下带 `browser-` 前缀的测试账户。
+未设置 `TEST_DATABASE_URL` 时，PostgreSQL 集成测试会明确跳过；不能将其视为数据库测试通过。CI 使用 PostgreSQL 17 服务执行同等的格式化、vet、race 测试、构建、sqlc diff 和 staticcheck。浏览器注册流程会在开发库留下带 `browser-` 前缀的测试账户。
 
 前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；未接入模块的页面只呈现真实身份数据与明确的未连接状态。
 
@@ -93,7 +92,7 @@ SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.
 
 后端 Docker 构建上下文为 `backend/`，可用 `docker build -t numdock-api backend` 构建。容器内需设置 `HTTP_ADDR=0.0.0.0:8080`，数据库迁移使用同一镜像执行 `/api -migrate`，不在 API 启动时隐式迁移。
 
-前端产物位于 `frontend/build/client/`，静态托管需将路由回退到 `index.html`，并将 `/v1` 转发到 Go API。生产入口必须使用 HTTPS、准确的 `APP_ORIGIN` 与 `COOKIE_SECURE=true`；安全 Cookie 使用 `__Host-` 前缀。当前没有跨域 Cookie / CORS 部署方案。
+前端产物位于 `frontend/build/client/`，静态托管需将路由回退到 `index.html`，并将 `/v1` 转发到 Go API。生产入口必须使用 HTTPS、准确的 `APP_ORIGIN` 与 `COOKIE_SECURE=true`；安全 Cookie 使用 `__Host-` 前缀。部署反向代理时，将代理 IP/CIDR 写入 `TRUSTED_PROXIES`，并确保代理覆盖或追加 `X-Forwarded-For`。当前没有跨域 Cookie / CORS 部署方案。
 
 本地 Docker 守护进程尚未运行，容器镜像与 Compose 启动需要在具备 Docker 的环境中验证。公开营销页的 SSG、SEO 和多语言将在对应切片落地；当前账户和工作区页面均为 noindex。
 

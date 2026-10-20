@@ -11,7 +11,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["health"];
+        /**
+         * Liveness probe
+         * @description Returns 200 while the API process is running. It does not check PostgreSQL.
+         */
+        get: operations["getLiveness"];
         put?: never;
         post?: never;
         delete?: never;
@@ -27,7 +31,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["readiness"];
+        /**
+         * Readiness probe
+         * @description Pings PostgreSQL with a one-second timeout. Use this for load balancers and orchestrators.
+         */
+        get: operations["getReadiness"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/openapi.yaml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download the OpenAPI contract
+         * @description Returns the same OpenAPI document used by the Scalar reference at `/docs/api`.
+         */
+        get: operations["getOpenAPIDocument"];
         put?: never;
         post?: never;
         delete?: never;
@@ -43,6 +71,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Get a CSRF token
+         * @description Returns a CSRF token and sets the matching HttpOnly CSRF cookie.
+         *     Reuse the existing cookie token when it is still valid. The token is
+         *     also required in `X-CSRF-Token` for register, login, and logout.
+         */
         get: operations["getCSRFToken"];
         put?: never;
         post?: never;
@@ -61,6 +95,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Create an account and workspace
+         * @description Creates a user, an organization, an owner membership, and a session in
+         *     one PostgreSQL transaction. The previous session cookie, when present,
+         *     is revoked. The new session cookie is only set after the transaction
+         *     commits. The browser must send an `Origin` header that exactly matches
+         *     `APP_ORIGIN`.
+         */
         post: operations["register"];
         delete?: never;
         options?: never;
@@ -77,6 +119,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Sign in and rotate the session
+         * @description Verifies the email and password, revokes the presented session cookie
+         *     when present, creates a new session, and returns the current identity.
+         *     Missing accounts still perform a dummy password hash to reduce timing
+         *     differences. The browser must send an `Origin` header that exactly
+         *     matches `APP_ORIGIN`.
+         */
         post: operations["login"];
         delete?: never;
         options?: never;
@@ -93,6 +143,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /**
+         * Revoke the current session
+         * @description Requires a valid session and CSRF token. The session hash is deleted
+         *     from PostgreSQL and the browser session cookie is cleared. The browser
+         *     must send an `Origin` header that exactly matches `APP_ORIGIN`.
+         */
         post: operations["logout"];
         delete?: never;
         options?: never;
@@ -107,6 +163,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * Get the current identity
+         * @description Returns the authenticated user and their own memberships.
+         */
         get: operations["getIdentity"];
         put?: never;
         post?: never;
@@ -123,6 +183,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /**
+         * List the current user's organizations
+         * @description Returns only organizations joined by the authenticated user, ordered by creation time and ID.
+         */
         get: operations["listOrganizations"];
         put?: never;
         post?: never;
@@ -141,24 +205,68 @@ export interface components {
             status: "ok" | "ready";
         };
         Error: {
+            /**
+             * @description Stable machine-readable code. Current values include:
+             *     validation_failed, invalid_request, unsupported_media_type,
+             *     payload_too_large, csrf_failed, account_unavailable,
+             *     invalid_credentials, unauthenticated, rate_limited, not_found,
+             *     method_not_allowed, not_ready, request_timeout, internal_error.
+             * @example validation_failed
+             */
             code: string;
+            /**
+             * @description User-safe message. Do not parse this field for control flow; use code.
+             * @example Enter a valid email address.
+             */
             message: string;
+            /**
+             * @description Correlates this response with server logs.
+             * @example 3d4f6a9b2c1e4f67890a1b
+             */
             request_id: string;
         };
+        CSRFToken: {
+            /** @description Send this value in the X-CSRF-Token header; it must match the CSRF cookie. */
+            token: string;
+        };
+        /**
+         * @example {
+         *       "email": "alex@example.com",
+         *       "password": "a sufficiently long passphrase"
+         *     }
+         */
         Credentials: {
-            /** Format: email */
+            /**
+             * Format: email
+             * @description Lowercased and trimmed before lookup.
+             */
             email: string;
-            /** @description Contains 12–128 Unicode code points; spaces are allowed. */
+            /** @description 12–128 Unicode code points; spaces are allowed. */
             password: string;
         };
+        /**
+         * @example {
+         *       "email": "alex@example.com",
+         *       "password": "a sufficiently long passphrase",
+         *       "name": "Alex",
+         *       "organization_name": "Alpha"
+         *     }
+         */
         Registration: {
             /** Format: email */
             email: string;
-            /** @description Contains 12–128 Unicode code points; spaces are allowed. */
             password: string;
             name: string;
             organization_name: string;
         };
+        /**
+         * @example {
+         *       "id": "4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21",
+         *       "email": "alex@example.com",
+         *       "name": "Alex",
+         *       "created_at": "2026-10-20T12:00:00Z"
+         *     }
+         */
         User: {
             /** Format: uuid */
             id: string;
@@ -168,6 +276,14 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        /**
+         * @example {
+         *       "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
+         *       "name": "Alpha",
+         *       "role": "owner",
+         *       "created_at": "2026-10-20T12:00:00Z"
+         *     }
+         */
         Organization: {
             /** Format: uuid */
             id: string;
@@ -177,15 +293,144 @@ export interface components {
             /** Format: date-time */
             created_at: string;
         };
+        /**
+         * @example {
+         *       "user": {
+         *         "id": "4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21",
+         *         "email": "alex@example.com",
+         *         "name": "Alex",
+         *         "created_at": "2026-10-20T12:00:00Z"
+         *       },
+         *       "organizations": [
+         *         {
+         *           "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
+         *           "name": "Alpha",
+         *           "role": "owner",
+         *           "created_at": "2026-10-20T12:00:00Z"
+         *         }
+         *       ]
+         *     }
+         */
         Identity: {
             user: components["schemas"]["User"];
             organizations: components["schemas"]["Organization"][];
         };
+        /**
+         * @example {
+         *       "items": [
+         *         {
+         *           "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
+         *           "name": "Alpha",
+         *           "role": "owner",
+         *           "created_at": "2026-10-20T12:00:00Z"
+         *         }
+         *       ],
+         *       "limit": 20,
+         *       "offset": 0
+         *     }
+         */
+        OrganizationList: {
+            items: components["schemas"]["Organization"][];
+            limit: number;
+            offset: number;
+        };
     };
     responses: {
-        /** @description Request failed; see code and request_id. Rate limits return Retry-After. */
-        Error: {
+        /** @description Invalid JSON, unknown fields, invalid email/password/name, or invalid pagination. */
+        BadRequest: {
             headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Missing, expired, or revoked session. */
+        Unauthorized: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Origin or CSRF validation failed. */
+        Forbidden: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Email is already registered. The message is intentionally generic to reduce account enumeration. */
+        Conflict: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Request body exceeds 8192 bytes. */
+        PayloadTooLarge: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Content-Type is not application/json. */
+        UnsupportedMediaType: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Persistent IP or email authentication rate limit exceeded. */
+        TooManyRequests: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                "Retry-After": components["headers"]["RetryAfter"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Unexpected server or database failure. Share the request ID, not credentials or message content. */
+        InternalServerError: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description The request exceeded the 15-second server timeout. */
+        GatewayTimeout: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+        /** @description Database is unavailable; the readiness probe cannot serve traffic. */
+        ServiceUnavailable: {
+            headers: {
+                "X-Request-ID": components["headers"]["XRequestID"];
                 [name: string]: unknown;
             };
             content: {
@@ -194,15 +439,27 @@ export interface components {
         };
     };
     parameters: {
+        /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
         CSRF: string;
+        /** @description Maximum number of organizations to return. */
+        Limit: number;
+        /** @description Number of organizations to skip. */
+        Offset: number;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Server-generated request identifier. It is safe to share with support and appears in server logs. */
+        XRequestID: string;
+        /** @description Seconds to wait before retrying the request. */
+        RetryAfter: string;
+        /** @description May contain one or more Set-Cookie headers (session or CSRF cookies). */
+        SetCookie: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    health: {
+    getLiveness: {
         parameters: {
             query?: never;
             header?: never;
@@ -211,18 +468,21 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Process is alive */
+            /** @description Process is alive. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
                 };
             };
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
-    readiness: {
+    getReadiness: {
         parameters: {
             query?: never;
             header?: never;
@@ -231,16 +491,41 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Database is reachable */
+            /** @description Database is reachable. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
                 };
             };
-            503: components["responses"]["Error"];
+            500: components["responses"]["InternalServerError"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["GatewayTimeout"];
+        };
+    };
+    getOpenAPIDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OpenAPI 3.0 YAML document. */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/yaml": string;
+                };
+            };
+            500: components["responses"]["InternalServerError"];
         };
     };
     getCSRFToken: {
@@ -252,24 +537,26 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description CSRF token; also sets an HttpOnly SameSite cookie */
+            /** @description CSRF token and cookie. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    "Set-Cookie": components["headers"]["SetCookie"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        token: string;
-                    };
+                    "application/json": components["schemas"]["CSRFToken"];
                 };
             };
-            default: components["responses"]["Error"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     register: {
         parameters: {
             query?: never;
             header: {
+                /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };
             path?: never;
@@ -281,22 +568,32 @@ export interface operations {
             };
         };
         responses: {
-            /** @description User, owner membership, organization and session created atomically */
+            /** @description Account, organization, owner membership, and session created. */
             201: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    "Set-Cookie": components["headers"]["SetCookie"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Identity"];
                 };
             };
-            default: components["responses"]["Error"];
+            400: components["responses"]["BadRequest"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Conflict"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     login: {
         parameters: {
             query?: never;
             header: {
+                /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };
             path?: never;
@@ -308,22 +605,32 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Signed in; prior session cookie is rotated and revoked */
+            /** @description Signed in; prior session cookie is rotated and revoked. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    "Set-Cookie": components["headers"]["SetCookie"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Identity"];
                 };
             };
-            default: components["responses"]["Error"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            413: components["responses"]["PayloadTooLarge"];
+            415: components["responses"]["UnsupportedMediaType"];
+            429: components["responses"]["TooManyRequests"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     logout: {
         parameters: {
             query?: never;
             header: {
+                /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
                 "X-CSRF-Token": components["parameters"]["CSRF"];
             };
             path?: never;
@@ -331,14 +638,19 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Session revoked in PostgreSQL and cookie removed */
+            /** @description Session revoked and cookie cleared. */
             204: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    "Set-Cookie": components["headers"]["SetCookie"];
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            default: components["responses"]["Error"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     getIdentity: {
@@ -350,23 +662,28 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Current authenticated user and their own memberships */
+            /** @description Current user and organizations. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["Identity"];
                 };
             };
-            default: components["responses"]["Error"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     listOrganizations: {
         parameters: {
             query?: {
-                limit?: number;
-                offset?: number;
+                /** @description Maximum number of organizations to return. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Number of organizations to skip. */
+                offset?: components["parameters"]["Offset"];
             };
             header?: never;
             path?: never;
@@ -374,20 +691,20 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Own organizations, ordered by creation time and ID ascending */
+            /** @description Paginated organizations. */
             200: {
                 headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        items: components["schemas"]["Organization"][];
-                        limit: number;
-                        offset: number;
-                    };
+                    "application/json": components["schemas"]["OrganizationList"];
                 };
             };
-            default: components["responses"]["Error"];
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
 }

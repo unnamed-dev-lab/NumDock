@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
+  BookOpen,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -83,6 +84,11 @@ const developerNavigation: NavigationItem[] = [
     to: "/app/developers",
     icon: KeyRound,
     badge: "workspace.soon",
+  },
+  {
+    label: "workspace.apiReference",
+    to: "/docs/api",
+    icon: BookOpen,
   },
 ];
 

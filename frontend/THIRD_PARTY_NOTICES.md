@@ -6,4 +6,6 @@
 
 Application adaptations and exact installation commands are recorded in [docs/component-sources.md](docs/component-sources.md) and `component-sources.json`.
 
+The interactive API reference at `/docs/api` uses `@scalar/api-reference-react` 0.9.81 (MIT). It is a specialized OpenAPI renderer loaded client-only, themed with project CSS variables, and wrapped with same-origin cookie/CSRF handling.
+
 shadcn/ui is distributed under the [MIT license](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md). See the accompanying `licenses/shadcn-ui.txt` for the upstream license notice. Other installed dependencies retain their licenses within their packages.

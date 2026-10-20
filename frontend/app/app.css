@@ -1,3 +1,4 @@
+@layer scalar-base, scalar-theme, scalar-config, theme, base, components, utilities;
 @import "tailwindcss";
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
@@ -128,4 +129,46 @@
   ::view-transition-new(root) {
     animation: none;
   }
+}
+
+/* Scalar consumes the same semantic tokens as the application shell. */
+:root {
+  --scalar-background-1: var(--background);
+  --scalar-background-2: var(--surface);
+  --scalar-background-3: var(--muted);
+  --scalar-color-1: var(--foreground);
+  --scalar-color-2: var(--muted-foreground);
+  --scalar-color-3: var(--muted-foreground);
+  --scalar-color-accent: var(--primary);
+  --scalar-border-color: var(--border);
+  --scalar-font: var(--font-sans);
+  --scalar-font-code: var(--font-mono);
+  --scalar-sidebar-background-1: var(--surface);
+  --scalar-sidebar-color-1: var(--foreground);
+  --scalar-sidebar-color-2: var(--muted-foreground);
+  --scalar-sidebar-border-color: var(--border);
+}
+
+.scalar-api-reference {
+  min-height: 100%;
+}
+
+/* Scalar sets theme variables on .scalar-app, so override at the same scope.
+   The reference keeps its standalone window-scrolling layout so its sidebar
+   and operation navigation retain their built-in sticky behavior. */
+.api-docs-surface .scalar-app {
+  --scalar-background-1: var(--background);
+  --scalar-background-2: var(--surface);
+  --scalar-background-3: var(--muted);
+  --scalar-color-1: var(--foreground);
+  --scalar-color-2: var(--muted-foreground);
+  --scalar-color-3: var(--muted-foreground);
+  --scalar-color-accent: var(--primary);
+  --scalar-border-color: var(--border);
+  --scalar-font: var(--font-sans);
+  --scalar-font-code: var(--font-mono);
+  --scalar-sidebar-background-1: var(--surface);
+  --scalar-sidebar-color-1: var(--foreground);
+  --scalar-sidebar-color-2: var(--muted-foreground);
+  --scalar-sidebar-border-color: var(--border);
 }

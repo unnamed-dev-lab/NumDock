@@ -208,52 +208,38 @@ test("theme menu dismisses with Escape and restores trigger focus", async ({
   await expect(trigger).toBeFocused();
 });
 
-test("workspace loading, empty and retry states remain reachable", async ({
+test("authenticated workspace is reachable after SSR session validation", async ({
   page,
 }) => {
-  let respond: () => void = () => {};
-  const released = new Promise<void>((resolve) => {
-    respond = resolve;
+  const email = `workspace-${Date.now()}@example.com`;
+  const csrfResponse = await page.request.get("/v1/auth/csrf");
+  expect(csrfResponse.ok()).toBe(true);
+  const { token } = (await csrfResponse.json()) as { token: string };
+  const registration = await page.request.post("/v1/auth/register", {
+    headers: {
+      Origin: "http://localhost:3000",
+      "X-CSRF-Token": token,
+    },
+    data: {
+      email,
+      password: "a workspace test passphrase",
+      name: "Workspace Tester",
+      organization_name: "Workspace Studio",
+    },
   });
-  await page.route("**/v1/me", async (route) => {
-    await released;
-    await route.fulfill({
-      status: 503,
-      json: {
-        code: "not_ready",
-        message: "Service temporarily unavailable.",
-        request_id: "test-request",
-      },
-    });
-  });
+  expect(registration.status()).toBe(201);
+
   await page.goto("/app");
-  await expect(page.getByRole("status")).toContainText(
-    "Loading your workspace",
-  );
-  respond();
   await expect(
-    page.getByRole("heading", { name: "Unable to load workspace" }),
+    page.getByRole("heading", { name: "Workspace Studio" }),
   ).toBeVisible();
-  await page.unroute("**/v1/me");
-  await page.route("**/v1/me", (route) =>
-    route.fulfill({
-      status: 200,
-      json: {
-        user: {
-          id: "00000000-0000-4000-8000-000000000001",
-          name: "Alex Morgan",
-          email: "alex@example.com",
-          created_at: "2026-10-20T00:00:00Z",
-        },
-        organizations: [],
-      },
-    }),
-  );
-  await page.getByRole("button", { name: "Try again", exact: true }).click();
+
+  await page.getByRole("button", { name: /^Numbers/ }).click();
+  await expect(page).toHaveURL(/\/app\/numbers$/);
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
+  await expect(page).toHaveURL(/\/app$/);
   await expect(
-    page.getByText("You do not belong to an organization yet.", {
-      exact: false,
-    }),
+    page.getByRole("heading", { name: "Workspace Studio" }),
   ).toBeVisible();
 });
 

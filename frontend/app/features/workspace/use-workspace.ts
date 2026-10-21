@@ -1,9 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { api, ApiError, csrfHeaders, identityQuery } from "@/lib/api/client";
+import {
+  api,
+  ApiError,
+  csrfHeaders,
+  identityQuery,
+  type Identity,
+} from "@/lib/api/client";
 
-export function useWorkspace() {
-  const identity = useQuery(identityQuery);
+export function useWorkspace(initialIdentity?: Identity) {
+  const identity = useQuery(
+    initialIdentity
+      ? { ...identityQuery, initialData: initialIdentity }
+      : identityQuery,
+  );
   const client = useQueryClient();
   const navigate = useNavigate();
   const logout = useMutation({

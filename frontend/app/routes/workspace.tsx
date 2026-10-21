@@ -1,8 +1,15 @@
 import type { MetaFunction } from "react-router";
+import type { Route } from "./+types/workspace";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { LanguageMenu } from "@/components/language";
 import { useTranslation } from "react-i18next";
-import { Navigate, Outlet, useRouteError } from "react-router";
+import {
+  Navigate,
+  Outlet,
+  redirect,
+  useLoaderData,
+  useRouteError,
+} from "react-router";
 import { AlertTriangle, LoaderCircle, RotateCcw } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { Button } from "@/components/motion/button/base";
@@ -16,8 +23,34 @@ export type WorkspaceOutletContext = {
   identity: Identity;
 };
 
-export const meta: MetaFunction = ({ matches }) =>
-  localizedMeta(matches, "workspace.workspace");
+export const meta: MetaFunction = ({ matches }) => [
+  ...localizedMeta(matches, "workspace.workspace"),
+  { name: "robots", content: "noindex, nofollow" },
+];
+
+export async function loader({ request }: Route.LoaderArgs) {
+  const baseURL = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8080";
+  let response: Response;
+  try {
+    response = await fetch(`${baseURL}/v1/me`, {
+      headers: { cookie: request.headers.get("cookie") ?? "" },
+      cache: "no-store",
+    });
+  } catch {
+    throw new Response("Unable to reach the identity service.", {
+      status: 502,
+    });
+  }
+
+  if (response.status === 401) throw redirect("/login");
+  if (!response.ok) {
+    throw new Response("Unable to load the workspace.", {
+      status: response.status === 503 ? 503 : 502,
+    });
+  }
+
+  return (await response.json()) as Identity;
+}
 
 function WorkspaceLoading() {
   const { t } = useTranslation();
@@ -92,7 +125,8 @@ function WorkspaceLoadError({
 
 export default function Workspace() {
   const { t } = useTranslation();
-  const { identity, logout } = useWorkspace();
+  const loaderIdentity = useLoaderData<typeof loader>();
+  const { identity, logout } = useWorkspace(loaderIdentity);
 
   if (identity.isPending) return <WorkspaceLoading />;
 

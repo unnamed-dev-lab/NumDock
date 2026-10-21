@@ -1,27 +1,26 @@
 import type { MetaFunction } from "react-router";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { useTranslation } from "react-i18next";
-import { Globe2, PhoneCall, ShieldCheck } from "lucide-react";
+import { PhoneCall } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   EmptyState,
   PageHeader,
-  SectionHeading,
   StatusBadge,
 } from "@/features/workspace/workspace-ui";
+import { CatalogView } from "@/features/catalog/catalog-view";
+import {
+  useHydratedCatalogStore,
+  type NumbersTab,
+} from "@/features/catalog/catalog-store";
 
 export const meta: MetaFunction = ({ matches }) =>
   localizedMeta(matches, "workspace.numbers");
 
-const catalogPreview = [
-  "workspace.countryAndRegionCoverageReturnedByThe",
-  "workspace.numberTypeAndTheCapabilitiesTheProvider",
-  "workspace.transparentPricingAndLeaseTerms",
-  "workspace.availabilityThatIsNeverSimulatedOrPre",
-] as const;
-
 export default function NumbersRoute() {
   const { t } = useTranslation();
+  const { activeTab, setActiveTab } = useHydratedCatalogStore();
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -31,13 +30,21 @@ export default function NumbersRoute() {
           "workspace.provisionAndManageAuthorizedVirtualNumbersInventory",
         )}
         status={
-          <StatusBadge tone="neutral">
-            {t("workspace.notConnected")}
+          <StatusBadge tone="active">
+            {t("workspace.active", { defaultValue: "运行中" })}
           </StatusBadge>
         }
       />
 
-      <Tabs defaultValue="numbers" className="flex-col gap-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(val) => {
+          if (val === "numbers" || val === "catalog") {
+            setActiveTab(val as NumbersTab);
+          }
+        }}
+        className="flex-col gap-4"
+      >
         <TabsList variant="line" aria-label={t("workspace.numberViews")}>
           <TabsTrigger value="numbers">
             {t("workspace.yourNumbers")}
@@ -45,7 +52,7 @@ export default function NumbersRoute() {
           <TabsTrigger value="catalog">{t("workspace.catalog")}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="numbers" className="pt-5">
+        <TabsContent value="numbers" className="pt-4">
           <EmptyState
             icon={PhoneCall}
             title={t("workspace.noNumbersYet")}
@@ -53,38 +60,10 @@ export default function NumbersRoute() {
           />
         </TabsContent>
 
-        <TabsContent value="catalog" className="pt-5">
-          <EmptyState
-            icon={Globe2}
-            title={t("workspace.catalogNotConnected")}
-            description={t(
-              "workspace.inventoryCoverageAndPricingAreNotDisplayed",
-            )}
-          >
-            <div className="space-y-3">
-              <SectionHeading title={t("workspace.whatTheCatalogWillShow")} />
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {catalogPreview.map((item) => (
-                  <li
-                    key={item}
-                    className="flex items-start gap-2.5 rounded-md border border-border bg-background px-3 py-2.5 text-sm leading-6 text-muted-foreground"
-                  >
-                    <ShieldCheck
-                      className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    {t(item)}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </EmptyState>
+        <TabsContent value="catalog" className="pt-4">
+          <CatalogView />
         </TabsContent>
       </Tabs>
-
-      <p className="max-w-3xl text-xs leading-5 text-muted-foreground">
-        {t("workspace.numdockDoesNotPreSeedInventoryOr")}
-      </p>
     </div>
   );
 }

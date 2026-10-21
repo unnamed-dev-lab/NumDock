@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import {
   identityQuery,
   unwrap,
 } from "@/lib/api/client";
+import { useAuthDraftStore } from "./auth-draft-store";
 
 export type AuthMode = "login" | "register";
 
@@ -55,6 +56,46 @@ export function useAuthForm(mode: AuthMode) {
     resolver: zodResolver(schema(registering)),
     defaultValues: { email: "", password: "", name: "", organization_name: "" },
   });
+  const [draftReady, setDraftReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void Promise.resolve(useAuthDraftStore.persist.rehydrate())
+      .then(() => {
+        if (!active) return;
+        const draft = useAuthDraftStore.getState();
+        if (registering) {
+          form.setValue("name", draft.name, { shouldDirty: false });
+          form.setValue("organization_name", draft.organization_name, {
+            shouldDirty: false,
+          });
+        }
+        form.setValue("email", draft.email, { shouldDirty: false });
+        setDraftReady(true);
+      })
+      .catch(() => {
+        if (active) setDraftReady(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [form, registering]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const subscription = form.watch((values) => {
+      const draft = useAuthDraftStore.getState();
+      if (registering && values.name !== undefined) {
+        draft.setField("name", values.name ?? "");
+      }
+      if (registering && values.organization_name !== undefined) {
+        draft.setField("organization_name", values.organization_name ?? "");
+      }
+      if (values.email !== undefined) draft.setField("email", values.email ?? "");
+    });
+    return () => subscription.unsubscribe();
+  }, [draftReady, form, registering]);
+
   const mutation = useMutation({
     mutationFn: async (values: AuthValues) => {
       const params = { header: await csrfHeaders() };
@@ -70,6 +111,7 @@ export function useAuthForm(mode: AuthMode) {
       );
     },
     onSuccess: (identity) => {
+      useAuthDraftStore.getState().clear();
       client.clear();
       client.setQueryData(identityQuery.queryKey, identity);
       void navigate("/app", { replace: true });
@@ -100,5 +142,6 @@ export function useAuthForm(mode: AuthMode) {
     rootError,
     submit,
     submitting: form.formState.isSubmitting,
+    draftReady,
   };
 }

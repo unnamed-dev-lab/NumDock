@@ -4,7 +4,8 @@
   "commands": [
     "bunx --bun shadcn@4.22.1 add @beui/input @beui/theme-toggle @beui/animated-sidebar --yes --overwrite",
     "bunx --bun shadcn@4.22.1 add @beui/button-base dropdown-menu table --yes --overwrite",
-    "bunx --bun shadcn@4.22.1 add badge card tabs dialog select switch separator tooltip button --yes"
+    "bunx --bun shadcn@4.22.1 add badge card tabs dialog select switch separator tooltip button --yes",
+    "bunx --bun shadcn@4.22.1 add @beui/not-found-stacked --overwrite --yes"
   ],
   "components": [
     {
@@ -32,6 +33,14 @@
       "item": "@beui/button-base",
       "registry": "https://beui.dev/r/button-base.json",
       "files": ["app/components/motion/button/base.tsx"]
+    },
+    {
+      "item": "@beui/not-found-stacked",
+      "registry": "https://beui.dev/r/not-found-stacked.json",
+      "files": [
+        "app/components/motion/not-found/stacked.tsx",
+        "app/components/motion/not-found/shared.tsx"
+      ]
     },
     {
       "item": "@shadcn/dropdown-menu",

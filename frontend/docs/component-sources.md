@@ -9,6 +9,7 @@ On 2026-10-20, shadcn CLI **4.22.1** was run through Bun; the CLI used the exist
 ```powershell
 bunx --bun shadcn@4.22.1 add @beui/input @beui/theme-toggle @beui/animated-sidebar --yes --overwrite
 bunx --bun shadcn@4.22.1 add @beui/button-base dropdown-menu table --yes --overwrite
+bunx --bun shadcn@4.22.1 add @beui/not-found-stacked --overwrite --yes
 pnpm add @base-ui/react
 pnpm remove radix-ui next-themes class-variance-authority
 ```
@@ -25,6 +26,7 @@ beUI MCP returned `@beui/button`, whose official endpoint returned HTTP 404. The
 | Sidebar | beUI `animated-sidebar` | Library-owned responsive navigation and mobile focus handling. Workspace content is composed from its public parts; scrim uses a semantic token. Indexed focus targets are safely guarded under strict TypeScript. |
 | Theme radio menu | shadcn `base-vega/dropdown-menu` | beUI search has no suitable radio menu; its bloom menu has different interaction semantics. Magic UI's reviewed theme toggler is a binary visual switch, not the three-choice menu required here. Base UI supplies radio selection, keyboard handling and focus restoration. |
 | Read-only organization table | shadcn `base-vega/table` | beUI's table targets virtualization, sorting, selection, resize and reorder; those features do not match this small read-only membership list. Magic UI visual effects do not provide this semantic table. Uses CLI-installed table markup with application data. |
+| 404 page | beUI `not-found-stacked` | Highest-priority matching block. Installed from the live registry (the aggregate `@beui/not-found` endpoint returns 404), then adapted to project radius, display typography and localized Back home / Open workspace actions. |
 | Interactive API reference | `@scalar/api-reference-react` 0.9.81 | No beUI, Magic UI or shadcn equivalent provides a full OpenAPI reference with a request client. Scalar is the official specialized integration (MIT), loaded client-only to avoid its untested SSR path. It is themed through semantic Scalar/CSS variables and wrapped with same-origin cookie and CSRF handling. Installed with `pnpm add @scalar/api-reference-react@0.9.81`. |
 
 The Base UI radio menu explicitly uses `closeOnClick` to retain the previous select-and-close behavior; Base UI's default for radio items keeps the menu open. The generated `render` composition API replaces Radix `asChild`.

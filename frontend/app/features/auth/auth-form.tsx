@@ -49,16 +49,18 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => setHydrated(true), []);
   const registering = mode === "register";
-  const { form, errorRef, rootError, submit, submitting } = useAuthForm(mode);
+  const { form, errorRef, rootError, submit, submitting, draftReady } =
+    useAuthForm(mode);
+  const ready = hydrated && draftReady;
 
   return (
     <form
       onSubmit={submit}
       noValidate
       className="mt-7 space-y-5"
-      aria-busy={!hydrated || submitting}
+      aria-busy={!ready || submitting}
     >
-      <fieldset disabled={!hydrated || submitting} className="space-y-5">
+      <fieldset disabled={!ready || submitting} className="space-y-5">
         <legend className="sr-only">
           {registering ? t("auth.newAccountDetails") : t("auth.signInDetails")}
         </legend>
@@ -134,7 +136,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <Button
         type="submit"
         className="h-11 w-full"
-        disabled={!hydrated || submitting}
+        disabled={!ready || submitting}
       >
         {submitting ? (
           <>
@@ -151,6 +153,9 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           </>
         )}
       </Button>
+      <p className="text-center text-xs leading-5 text-muted-foreground">
+        {t("auth.draftNotice")}
+      </p>
     </form>
   );
 }

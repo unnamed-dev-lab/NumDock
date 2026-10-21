@@ -158,13 +158,26 @@ test("Mock workspace completes credit, lease, encrypted inbox, refund, key and w
     .getByRole("button", { name: "Close", exact: true })
     .last()
     .click();
+  await page.getByRole("button", { name: "Disable", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Enable", exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button", { name: "Enable", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "Disable", exact: true }),
+  ).toBeEnabled();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const testSent = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" &&
+      /\/webhooks\/[^/]+\/test$/.test(new URL(response.url()).pathname),
+  );
   await page
     .getByRole("button", { name: "Send test event", exact: true })
     .click();
+  expect((await testSent).ok()).toBe(true);
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(
-    page.getByRole("status").filter({ hasText: "Saved successfully." }),
-  ).toHaveCount(1);
   await page.getByRole("tab", { name: "Deliveries", exact: true }).click();
   await expect(
     page.locator("tbody").getByText("Delivered", { exact: true }).first(),

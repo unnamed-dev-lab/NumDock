@@ -43,11 +43,10 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     );
   await page.goto("/app/numbers?tab=catalog");
   const catalog = page.getByRole("region", { name: "Catalog", exact: true });
+  await expect(page.getByText("Development", { exact: true })).toHaveCount(1);
   await expect(
-    catalog.getByText("Development catalog from PostgreSQL.", {
-      exact: false,
-    }),
-  ).toBeVisible();
+    catalog.getByText("Development catalog from PostgreSQL.", { exact: false }),
+  ).toHaveCount(0);
   await expect(
     catalog.getByRole("cell", { name: "NumDock Mock", exact: true }),
   ).toHaveCount(10);
@@ -105,7 +104,9 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     .getByRole("button", { name: "Monthly fee", exact: true })
     .click();
   await expect(page).toHaveURL(/sort=monthly_fee_minor/);
- await expect(catalog.getByRole("columnheader",{name:"Monthly fee"})).toHaveAttribute("aria-sort","ascending");
+  await expect(
+    catalog.getByRole("columnheader", { name: "Monthly fee" }),
+  ).toHaveAttribute("aria-sort", "ascending");
   await expect(catalog.locator("tbody tr").first()).toContainText(
     money(ascending.items[0].monthly_fee_minor),
   );

@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: NumDock
+    orgId: 1
+    folder: NumDock
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /otel-lgtm/grafana/conf/provisioning/dashboards/numdock

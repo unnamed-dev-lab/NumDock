@@ -1,3 +1,7 @@
+import {
+  featurePresentation,
+  usePublicStatus,
+} from "@/features/marketing/public-status-query";
 import type { MetaFunction } from "react-router";
 import { Link, useLoaderData } from "react-router";
 import { useTranslation } from "react-i18next";
@@ -7,6 +11,7 @@ import {
   CheckCircle2,
   Globe2,
   Inbox,
+  KeyRound,
   LockKeyhole,
   ReceiptText,
   Server,
@@ -17,6 +22,7 @@ import { ButtonLink } from "@/components/motion/button/base";
 import {
   PublicFooter,
   PublicHeader,
+  WorkspaceEntry,
 } from "@/features/marketing/public-shell";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { fetchPublicStatus } from "@/lib/public-status.server";
@@ -59,43 +65,71 @@ const gatedLinks = [
 
 export default function Home() {
   const { t } = useTranslation();
-  const { status } = useLoaderData<typeof loader>();
+  const initial = useLoaderData<typeof loader>();
+  const statusQuery = usePublicStatus(initial.status);
+  const status = statusQuery.data;
 
   const serviceRows = [
     {
       key: "status.api",
-      online: status.api,
-      label: status.api ? "status.online" : "status.offline",
+      online: !!status?.api,
+      label: status?.api ? "status.online" : "status.offline",
       icon: Server,
     },
     {
       key: "status.database",
-      online: status.database,
-      label: status.database ? "status.online" : "status.offline",
+      online: !!status?.database,
+      label: status?.database ? "status.online" : "status.offline",
       icon: CheckCircle2,
     },
     {
       key: "status.identity",
-      online: status.api,
-      label: status.api ? "status.online" : "status.offline",
+      ...featurePresentation(status, "identity"),
       icon: ShieldCheck,
     },
     {
       key: "status.catalog",
-      online: false,
-      label: "status.notConfigured",
+      ...featurePresentation(status, "catalog"),
       icon: Globe2,
     },
     {
+      key: "workspace.numbers",
+      ...featurePresentation(status, "numbers"),
+      icon: ReceiptText,
+    },
+    {
       key: "status.messaging",
-      online: false,
-      label: "status.notConfigured",
+      ...featurePresentation(status, "messaging"),
       icon: Inbox,
     },
     {
       key: "status.billing",
-      online: false,
-      label: "status.notConfigured",
+      ...featurePresentation(status, "billing"),
+      icon: Wallet,
+    },
+    {
+      key: "workspace.apiWebhooks",
+      ...featurePresentation(status, "developer"),
+      icon: KeyRound,
+    },
+    {
+      key: "status.realProvider",
+      online: !!status?.live_provider_connected,
+      label: !status
+        ? "status.offline"
+        : status.live_provider_connected
+          ? "status.online"
+          : "status.notConfigured",
+      icon: Globe2,
+    },
+    {
+      key: "status.payments",
+      online: !!status?.payments_connected,
+      label: !status
+        ? "status.offline"
+        : status.payments_connected
+          ? "status.online"
+          : "status.notConfigured",
       icon: Wallet,
     },
   ] as const;
@@ -138,6 +172,11 @@ export default function Home() {
                 {t("home.currentBuild")}
               </span>
             </div>
+            {statusQuery.isError ? (
+              <p role="alert" className="py-3 text-xs text-destructive">
+                {t("status.refreshError")}
+              </p>
+            ) : null}
             <ul className="divide-y divide-border">
               {serviceRows.map((row) => {
                 const Icon = row.icon;
@@ -230,22 +269,27 @@ export default function Home() {
             <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
               {t("home.signInForDescription")}
             </p>
-            <ButtonLink href="/register" size="md" className="mt-6 rounded-md">
-              {t("home.primaryCta")}
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </ButtonLink>
+            <div className="mt-6">
+              <WorkspaceEntry />
+            </div>
           </div>
           <ul className="divide-y divide-border border-y border-border">
             {gatedLinks.map((item) => {
               const Icon = item.icon;
               return (
-                <li key={item.key} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
+                <li
+                  key={item.key}
+                  className="flex items-start gap-3 py-4 first:pt-0 last:pb-0"
+                >
                   <LockKeyhole
                     className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                     aria-hidden="true"
                   />
                   <span className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
-                    <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                    <Icon
+                      className="mt-0.5 size-4 shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
                     {t(item.key)}
                   </span>
                 </li>
@@ -264,19 +308,7 @@ export default function Home() {
                 {t("home.ctaDescription")}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/register" size="md" className="rounded-md">
-                {t("home.primaryCta")}
-              </ButtonLink>
-              <ButtonLink
-                href="/login"
-                variant="outline"
-                size="md"
-                className="rounded-md"
-              >
-                {t("home.secondaryCta")}
-              </ButtonLink>
-            </div>
+            <WorkspaceEntry />
           </div>
         </section>
       </main>

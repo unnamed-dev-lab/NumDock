@@ -1,17 +1,12 @@
 import type { MetaFunction } from "react-router";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import {
-  ArrowRight,
-  LockKeyhole,
-  Server,
-  ShieldCheck,
-  UserCheck,
-} from "lucide-react";
+import { LockKeyhole, Server, ShieldCheck, UserCheck } from "lucide-react";
 import { ButtonLink } from "@/components/motion/button/base";
 import {
   PublicFooter,
   PublicHeader,
+  WorkspaceEntry,
 } from "@/features/marketing/public-shell";
 import { localizedMeta } from "@/lib/i18n/meta";
 
@@ -46,7 +41,9 @@ export default function SecurityPage() {
       <PublicHeader />
       <main id="main-content" className="flex-1">
         <section className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-          <p className="text-xs font-medium text-primary">{t("security.eyebrow")}</p>
+          <p className="text-xs font-medium text-primary">
+            {t("security.eyebrow")}
+          </p>
           <h1 className="mt-3 max-w-2xl font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             {t("security.title")}
           </h1>
@@ -69,7 +66,10 @@ export default function SecurityPage() {
               {securityItems.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <li key={item.key} className="flex gap-4 py-5 first:pt-0 last:pb-0">
+                  <li
+                    key={item.key}
+                    className="flex gap-4 py-5 first:pt-0 last:pb-0"
+                  >
                     <Icon
                       className="mt-0.5 size-4 shrink-0 text-primary"
                       aria-hidden="true"
@@ -125,10 +125,7 @@ export default function SecurityPage() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <ButtonLink href="/register" size="md" className="rounded-md">
-                {t("home.primaryCta")}
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </ButtonLink>
+              <WorkspaceEntry />
               <ButtonLink
                 href="/status"
                 variant="outline"

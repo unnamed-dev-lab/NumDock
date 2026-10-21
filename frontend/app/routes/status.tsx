@@ -1,5 +1,9 @@
+import {
+  featurePresentation,
+  usePublicStatus,
+} from "@/features/marketing/public-status-query";
 import type { MetaFunction } from "react-router";
-import { useLoaderData, useRevalidator } from "react-router";
+import { useLoaderData } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
   CheckCircle2,
@@ -7,16 +11,15 @@ import {
   Database,
   Globe2,
   Inbox,
+  KeyRound,
+  ReceiptText,
   RefreshCw,
   Server,
   ShieldCheck,
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/motion/button/base";
-import {
-  PublicFooter,
-  PublicHeader,
-} from "@/features/marketing/public-shell";
+import { PublicFooter, PublicHeader } from "@/features/marketing/public-shell";
 import { StatusBadge } from "@/features/workspace/workspace-ui";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { fetchPublicStatus } from "@/lib/public-status.server";
@@ -32,31 +35,34 @@ export async function loader() {
 
 export default function StatusPage() {
   const { t } = useTranslation();
-  const { status } = useLoaderData<typeof loader>();
-  const revalidator = useRevalidator();
+  const initial = useLoaderData<typeof loader>();
+  const statusQuery = usePublicStatus(initial.status);
+  const status = statusQuery.data;
 
   const services = [
     {
       key: "status.api",
-      online: status.api,
+      online: !!status?.api,
       icon: Server,
     },
     {
       key: "status.database",
-      online: status.database,
+      online: !!status?.database,
       icon: Database,
     },
     {
       key: "status.identity",
-      online: status.api,
+      online: status?.features.identity === "active",
       icon: ShieldCheck,
     },
   ] as const;
 
   const modules = [
-    { key: "status.catalog", icon: Globe2 },
-    { key: "status.messaging", icon: Inbox },
-    { key: "status.billing", icon: Wallet },
+    { key: "status.catalog", feature: "catalog", icon: Globe2 },
+    { key: "workspace.numbers", feature: "numbers", icon: ReceiptText },
+    { key: "status.messaging", feature: "messaging", icon: Inbox },
+    { key: "status.billing", feature: "billing", icon: Wallet },
+    { key: "workspace.apiWebhooks", feature: "developer", icon: KeyRound },
   ] as const;
 
   return (
@@ -66,7 +72,9 @@ export default function StatusPage() {
         <section className="mx-auto w-full max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <p className="text-xs font-medium text-primary">{t("status.eyebrow")}</p>
+              <p className="text-xs font-medium text-primary">
+                {t("status.eyebrow")}
+              </p>
               <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
                 {t("status.title")}
               </h1>
@@ -77,12 +85,12 @@ export default function StatusPage() {
             <Button
               variant="outline"
               size="sm"
-              disabled={revalidator.state !== "idle"}
-              onClick={() => revalidator.revalidate()}
+              disabled={statusQuery.isFetching}
+              onClick={() => void statusQuery.refetch()}
             >
               <RefreshCw
                 className={
-                  revalidator.state === "idle"
+                  !statusQuery.isFetching
                     ? "size-3.5"
                     : "size-3.5 animate-spin motion-reduce:animate-none"
                 }
@@ -92,12 +100,22 @@ export default function StatusPage() {
             </Button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            {t("status.checkedAt", {
-              time: `${status.checkedAt.slice(11, 16)} UTC`,
-            })}
+            {status
+              ? t("status.checkedAt", {
+                  time: `${status.checked_at.slice(11, 16)} UTC`,
+                })
+              : t("status.offline")}
           </p>
         </section>
 
+        {statusQuery.isError ? (
+          <p
+            role="alert"
+            className="mx-auto max-w-6xl px-5 pb-4 text-sm text-destructive"
+          >
+            {t("status.refreshError")}
+          </p>
+        ) : null}
         <section className="border-y border-border bg-surface">
           <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 sm:px-8 lg:grid-cols-2">
             <div>
@@ -120,12 +138,20 @@ export default function StatusPage() {
                           />
                           {t(service.key)}
                         </span>
-                        <StatusBadge tone={service.online ? "active" : "warning"}>
+                        <StatusBadge
+                          tone={service.online ? "active" : "warning"}
+                        >
                           <span className="flex items-center gap-1.5">
                             {service.online ? (
-                              <CheckCircle2 className="size-3" aria-hidden="true" />
+                              <CheckCircle2
+                                className="size-3"
+                                aria-hidden="true"
+                              />
                             ) : (
-                              <CircleDashed className="size-3" aria-hidden="true" />
+                              <CircleDashed
+                                className="size-3"
+                                aria-hidden="true"
+                              />
                             )}
                             {service.online
                               ? t("status.online")
@@ -147,6 +173,10 @@ export default function StatusPage() {
                 <ul className="divide-y divide-border">
                   {modules.map((module) => {
                     const Icon = module.icon;
+                    const presentation = featurePresentation(
+                      status,
+                      module.feature,
+                    );
                     return (
                       <li
                         key={module.key}
@@ -159,8 +189,8 @@ export default function StatusPage() {
                           />
                           {t(module.key)}
                         </span>
-                        <StatusBadge tone="neutral">
-                          {t("status.notConfigured")}
+                        <StatusBadge tone={presentation.tone}>
+                          {t(presentation.label)}
                         </StatusBadge>
                       </li>
                     );
@@ -178,6 +208,24 @@ export default function StatusPage() {
           <h2 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             {t("status.beforeTitle")}
           </h2>
+          <p className="mt-3 text-sm text-foreground">
+            {t("status.integrationSummary", {
+              provider: t(
+                !status
+                  ? "status.offline"
+                  : status.live_provider_connected
+                    ? "status.online"
+                    : "status.notConfigured",
+              ),
+              payments: t(
+                !status
+                  ? "status.offline"
+                  : status.payments_connected
+                    ? "status.online"
+                    : "status.notConfigured",
+              ),
+            })}
+          </p>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
             {t("status.beforeDescription")}
           </p>

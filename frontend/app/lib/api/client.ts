@@ -36,6 +36,18 @@ export function unwrap<T>(result: {
 }
 
 const errorKeys: Record<string, TranslationKey> = {
+  resource_limit: "errors.resource_limit",
+  invalid_webhook_url: "errors.invalid_webhook_url",
+  webhook_disabled: "errors.webhook_disabled",
+  feature_disabled: "errors.feature_disabled",
+  idempotency_conflict: "errors.idempotency_conflict",
+  inventory_unavailable: "errors.inventory_unavailable",
+  insufficient_balance: "errors.insufficient_balance",
+  lease_inactive: "errors.lease_inactive",
+  refund_unavailable: "errors.refund_unavailable",
+  release_required: "errors.release_required",
+  sms_unavailable: "errors.sms_unavailable",
+
   invalid_credentials: "errors.invalidCredentials",
   unauthenticated: "errors.unauthenticated",
   csrf_failed: "errors.csrfFailed",
@@ -67,7 +79,12 @@ export async function csrfHeaders() {
 
 export const identityQuery = queryOptions({
   queryKey: ["identity"],
-  queryFn: async ({ signal }) => unwrap(await api.GET("/v1/me", { signal })),
+  queryFn: async ({ signal }) => {
+    const result = await api.GET("/v1/me", { signal });
+    // A confirmed anonymous session replaces any previous cached identity.
+    if (result.response.status === 401) return null;
+    return unwrap(result);
+  },
   staleTime: 30_000,
   retry: (count, error) =>
     !(error instanceof ApiError && error.status < 500) && count < 1,

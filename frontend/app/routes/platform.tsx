@@ -1,8 +1,12 @@
+import { fetchPublicStatus } from "@/lib/public-status.server";
+import {
+  featurePresentation,
+  usePublicStatus,
+} from "@/features/marketing/public-status-query";
 import type { MetaFunction } from "react-router";
-import { Link } from "react-router";
+import { Link, useLoaderData } from "react-router";
 import { useTranslation } from "react-i18next";
 import {
-  ArrowRight,
   BookOpen,
   Globe2,
   Inbox,
@@ -11,10 +15,10 @@ import {
   ShieldCheck,
   Wallet,
 } from "lucide-react";
-import { ButtonLink } from "@/components/motion/button/base";
 import {
   PublicFooter,
   PublicHeader,
+  WorkspaceEntry,
 } from "@/features/marketing/public-shell";
 import { StatusBadge } from "@/features/workspace/workspace-ui";
 import { localizedMeta } from "@/lib/i18n/meta";
@@ -24,6 +28,10 @@ export const meta: MetaFunction = ({ matches }) => [
   { name: "robots", content: "index, follow" },
 ];
 
+export async function loader() {
+  return { status: await fetchPublicStatus() };
+}
+
 const gatedItems = [
   { key: "home.signInForBuy" as const, icon: ReceiptText },
   { key: "home.signInForMessages" as const, icon: Inbox },
@@ -31,40 +39,19 @@ const gatedItems = [
 ];
 
 const modules = [
-  {
-    key: "workspace.identityAccess",
-    status: "workspace.active",
-    tone: "active" as const,
-    icon: ShieldCheck,
-  },
-  {
-    key: "workspace.numberCatalog",
-    status: "workspace.notConnected",
-    tone: "neutral" as const,
-    icon: Globe2,
-  },
-  {
-    key: "workspace.inboundMessaging",
-    status: "workspace.notConnected",
-    tone: "neutral" as const,
-    icon: Inbox,
-  },
-  {
-    key: "workspace.billingLedger",
-    status: "workspace.notEnabled",
-    tone: "neutral" as const,
-    icon: Wallet,
-  },
-  {
-    key: "workspace.apiWebhooks",
-    status: "workspace.planned",
-    tone: "neutral" as const,
-    icon: KeyRound,
-  },
+  { key: "workspace.identityAccess", feature: "identity", icon: ShieldCheck },
+  { key: "workspace.numberCatalog", feature: "catalog", icon: Globe2 },
+  { key: "workspace.numbers", feature: "numbers", icon: ReceiptText },
+  { key: "workspace.inboundMessaging", feature: "messaging", icon: Inbox },
+  { key: "workspace.billingLedger", feature: "billing", icon: Wallet },
+  { key: "workspace.apiWebhooks", feature: "developer", icon: KeyRound },
 ] as const;
 
 export default function PlatformPage() {
   const { t } = useTranslation();
+  const initial = useLoaderData<typeof loader>();
+  const statusQuery = usePublicStatus(initial.status);
+  const status = statusQuery.data;
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -93,9 +80,18 @@ export default function PlatformPage() {
               </p>
             </div>
             <div className="overflow-hidden rounded-lg border border-border bg-background">
+              {statusQuery.isError ? (
+                <p role="alert" className="p-4 text-sm text-destructive">
+                  {t("status.refreshError")}
+                </p>
+              ) : null}
               <ul className="divide-y divide-border">
                 {modules.map((module) => {
                   const Icon = module.icon;
+                  const presentation = featurePresentation(
+                    status,
+                    module.feature,
+                  );
                   return (
                     <li
                       key={module.key}
@@ -108,13 +104,31 @@ export default function PlatformPage() {
                         />
                         {t(module.key)}
                       </span>
-                      <StatusBadge tone={module.tone}>
-                        {t(module.status)}
+                      <StatusBadge tone={presentation.tone}>
+                        {t(presentation.label)}
                       </StatusBadge>
                     </li>
                   );
                 })}
               </ul>
+              <p className="border-t border-border p-4 text-xs leading-5 text-muted-foreground">
+                {t("status.integrationSummary", {
+                  provider: t(
+                    !status
+                      ? "status.offline"
+                      : status.live_provider_connected
+                        ? "status.online"
+                        : "status.notConfigured",
+                  ),
+                  payments: t(
+                    !status
+                      ? "status.offline"
+                      : status.payments_connected
+                        ? "status.online"
+                        : "status.notConfigured",
+                  ),
+                })}
+              </p>
             </div>
           </div>
         </section>
@@ -129,7 +143,10 @@ export default function PlatformPage() {
             </p>
             <ul className="mt-6 divide-y divide-border border-y border-border">
               <li className="flex items-start gap-3 py-4 first:pt-0">
-                <Globe2 className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <Globe2
+                  className="mt-0.5 size-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
                 <Link
                   to="/status"
                   className="text-sm leading-6 text-foreground underline-offset-4 hover:underline"
@@ -138,7 +155,10 @@ export default function PlatformPage() {
                 </Link>
               </li>
               <li className="flex items-start gap-3 py-4 last:pb-0">
-                <BookOpen className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
+                <BookOpen
+                  className="mt-0.5 size-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
                 <Link
                   to="/docs/api"
                   className="text-sm leading-6 text-foreground underline-offset-4 hover:underline"
@@ -157,8 +177,14 @@ export default function PlatformPage() {
             </p>
             <ul className="mt-6 divide-y divide-border border-y border-border">
               {gatedItems.map(({ key, icon: Icon }) => (
-                <li key={key} className="flex items-start gap-3 py-4 first:pt-0 last:pb-0">
-                  <Icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <li
+                  key={key}
+                  className="flex items-start gap-3 py-4 first:pt-0 last:pb-0"
+                >
+                  <Icon
+                    className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
                   <span className="text-sm leading-6 text-muted-foreground">
                     {t(key)}
                   </span>
@@ -178,10 +204,7 @@ export default function PlatformPage() {
                 {t("home.ctaDescription")}
               </p>
             </div>
-            <ButtonLink href="/register" size="md" className="rounded-md">
-              {t("home.primaryCta")}
-              <ArrowRight className="size-4" aria-hidden="true" />
-            </ButtonLink>
+            <WorkspaceEntry />
           </div>
         </section>
       </main>

@@ -17,8 +17,9 @@ function isLocalDevOrigin(value: string) {
   }
 }
 
-const localDevOrigin =
-  isLocalDevOrigin(devAppOrigin) ? new URL(devAppOrigin) : null;
+const localDevOrigin = isLocalDevOrigin(devAppOrigin)
+  ? new URL(devAppOrigin)
+  : null;
 
 function isLocalhostOrigin(value: string) {
   try {
@@ -38,11 +39,7 @@ function devPortFallbackNotice(): Plugin {
     configureServer(server) {
       server.httpServer?.once("listening", () => {
         const address = server.httpServer?.address();
-        if (
-          !address ||
-          typeof address === "string" ||
-          !localDevOrigin
-        ) {
+        if (!address || typeof address === "string" || !localDevOrigin) {
           return;
         }
         const expectedPort =
@@ -58,15 +55,52 @@ function devPortFallbackNotice(): Plugin {
   };
 }
 
+function checkBackendContract(): Plugin {
+  return {
+    name: "numdock-api-contract-check",
+    configureServer(server) {
+      server.httpServer?.once("listening", () => {
+        void (async () => {
+          const target =
+            process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8080";
+          try {
+            const response = await fetch(
+              `${target.replace(/\/$/, "")}/v1/openapi.yaml`,
+              { signal: AbortSignal.timeout(2500) },
+            );
+            const spec = await response.text();
+            if (
+              !response.ok ||
+              !spec.includes("/v1/organizations/{organization_id}/workspace")
+            )
+              server.config.logger.warn(
+                "[numdock] The connected backend does not expose the workspace API. Restart the NumDock backend from this checkout and verify API_INTERNAL_URL.",
+              );
+          } catch {
+            server.config.logger.warn(
+              "[numdock] Cannot verify the backend contract. Start the NumDock backend and verify API_INTERNAL_URL.",
+            );
+          }
+        })();
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [tailwindcss(), reactRouter(), devPortFallbackNotice()],
+  plugins: [
+    tailwindcss(),
+    reactRouter(),
+    devPortFallbackNotice(),
+    checkBackendContract(),
+  ],
   resolve: { alias: { "@": fileURLToPath(new URL("./app", import.meta.url)) } },
   server: {
     port: 3000,
     strictPort: false,
     proxy: {
       "/v1": {
-        target: "http://127.0.0.1:8080",
+        target: process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8080",
         configure(proxy) {
           proxy.on("proxyReq", (proxyReq, req) => {
             const origin = req.headers.origin;

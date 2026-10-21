@@ -50,7 +50,7 @@ export function useAuthForm(mode: AuthMode) {
   const registering = mode === "register";
   const navigate = useNavigate();
   const client = useQueryClient();
-  const current = useQuery(identityQuery);
+  const current = useQuery({ ...identityQuery, refetchOnMount: "always" });
   const errorRef = useRef<HTMLParagraphElement>(null);
   const form = useForm<AuthValues>({
     resolver: zodResolver(schema(registering)),
@@ -60,7 +60,8 @@ export function useAuthForm(mode: AuthMode) {
 
   useEffect(() => {
     let active = true;
-    void Promise.resolve(useAuthDraftStore.persist.rehydrate())
+    // Zustand omits the persist API when browser storage is unavailable.
+    void Promise.resolve(useAuthDraftStore.persist?.rehydrate())
       .then(() => {
         if (!active) return;
         const draft = useAuthDraftStore.getState();
@@ -91,7 +92,8 @@ export function useAuthForm(mode: AuthMode) {
       if (registering && values.organization_name !== undefined) {
         draft.setField("organization_name", values.organization_name ?? "");
       }
-      if (values.email !== undefined) draft.setField("email", values.email ?? "");
+      if (values.email !== undefined)
+        draft.setField("email", values.email ?? "");
     });
     return () => subscription.unsubscribe();
   }, [draftReady, form, registering]);
@@ -119,8 +121,9 @@ export function useAuthForm(mode: AuthMode) {
   });
 
   useEffect(() => {
-    if (current.data) void navigate("/app", { replace: true });
-  }, [current.data, navigate]);
+    if (current.data && !current.isFetching && !current.isError)
+      void navigate("/app", { replace: true });
+  }, [current.data, current.isFetching, current.isError, navigate]);
   const rootError = form.formState.errors.root
     ? errorMessage(mutation.error, t)
     : undefined;

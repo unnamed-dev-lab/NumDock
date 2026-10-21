@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
-export function Brand() {
+export function Brand({ nameClassName }: { nameClassName?: string }) {
   const { t } = useTranslation();
   return (
     <Link
@@ -15,7 +15,7 @@ export function Brand() {
         viewBox="0 0 28 28"
         fill="none"
         aria-hidden="true"
-        className="text-primary"
+        className="shrink-0 text-primary"
       >
         <rect
           x="1"
@@ -34,7 +34,7 @@ export function Brand() {
           strokeLinejoin="round"
         />
       </svg>
-      NumDock
+      <span className={nameClassName}>NumDock</span>
     </Link>
   );
 }

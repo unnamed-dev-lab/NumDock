@@ -1,6 +1,6 @@
 # NumDock
 
-面向授权通信业务的号码与消息工作区。当前已实现身份切片和开发环境只读号码目录：真实 PostgreSQL 注册、登录、组织查询与会话撤销，以及数据库驱动的模拟目录。产品尚未形成号码购买、租约、短信和计费的业务闭环。详细盘点见 [`docs/project-status.md`](docs/project-status.md)。
+面向授权通信业务的号码与消息工作区。当前已实现持久化 Mock 开发版：身份、组织、号码申请与释放、消息、钱包账本、退款、API Key、Webhook、River 和 SSE。所有通信与资金均为明确标注的模拟业务。详细盘点见 [`docs/project-status.md`](docs/project-status.md)。
 
 ## 当前边界
 
@@ -10,9 +10,9 @@
 - Cookie 会话有效期 12 小时，数据库仅保存会话令牌摘要；密码使用带随机盐的 Argon2id。
 - 身份变更接口执行 Origin + CSRF 校验；认证限流记录在 PostgreSQL，跨进程共享。通过 `TRUSTED_PROXIES` 配置可信代理 IP/CIDR；仅当直接对端是可信代理时才解析 `X-Forwarded-For`，默认不信任转发头。
 - 界面支持英文与简体中文，使用 i18next + react-i18next；语言偏好通过 Cookie 持久化，并同步 SSR 首屏、页面标题、校验与错误提示。维护说明见 `frontend/docs/i18n.md`。
-- 已有首页、平台、安全、状态与 API 文档公开页面。真实供应商、号码申请、订单、租约、短信、账本、River、Redis 和 OpenTelemetry 尚未实现。
-- 工作台展示真实用户与组织数据；开发环境号码目录从 PostgreSQL 读取明确标识的模拟库存与报价，不显示虚构余额、真实供应商状态或第三方验证能力。模拟号码不可购买或收信。非开发模式目录返回空列表与 `mode=disabled`。
-- 目前还没有邮箱验证、密码找回、邀请成员、API Key 管理或生产合规工作流。这是开发基础切片，不是完整生产发布版本。
+- 已有首页、平台、安全、状态与 API 文档公开页面。真实供应商、支付机构与 Redis 尚未接入；Mock 号码、订单、租约、消息、账本和持久任务已实现。Go HTTP 层已接入 OpenTelemetry traces／metrics 和可选 OTLP HTTP 导出，开发概览展示组织隔离的数据库样本。
+- 工作台展示真实用户与组织数据；开发环境号码目录从 PostgreSQL 读取明确标识的模拟库存与报价，余额、号码和消息均明确标注为 Mock；不宣称真实供应商状态或第三方验证能力。非开发模式目录返回空列表与 `mode=disabled`。
+- 目前还没有邮箱验证、密码找回、邀请成员或生产合规工作流。这是 Mock 开发版，不是完整生产发布版本。
 
 ## 目录
 
@@ -22,6 +22,10 @@ backend/
   internal/identity/   身份领域：用例、HTTP 适配与 PostgreSQL 适配
   internal/catalog/    开发只读目录、筛选与分页
   internal/devseed/    显式开发用户、组织与目录初始化
+  internal/operations/ 号码、订单、消息、钱包、密钥、Webhook、River
+  internal/providers/  Mock Provider
+  internal/overview/   组织级开发概览
+  internal/platform/telemetry/ HTTP 遥测 SDK 与导出
   internal/platform/   配置、HTTP 响应与通用中间件
   internal/server/     HTTP composition root 与集成测试
   db/migrations/       数据库迁移
@@ -58,7 +62,7 @@ Scalar 页面会在浏览器中直接加载契约，导航、接口说明、参�
 
    ```powershell
    ./scripts/backend.ps1 migrate
-   ./scripts/backend.ps1 seed # 可选：创建开发用户和模拟目录
+   ./scripts/backend.ps1 seed # 可选：创建开发用户、余额、号码、消息及模拟目录
    ./scripts/backend.ps1 run
    ```
 
@@ -97,7 +101,7 @@ pnpm test:e2e
 
 未设置 `TEST_DATABASE_URL` 时，PostgreSQL 集成测试会明确跳过；不能将其视为数据库测试通过。CI 使用 PostgreSQL 17 服务执行同等的格式化、vet、race 测试、构建、sqlc diff 和 staticcheck。浏览器注册流程会在开发库留下带 `browser-` 前缀的测试账户。
 
-前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；未接入模块的页面只呈现真实身份数据与明确的未连接状态。
+前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；号码、消息、账单与开发者页面均接入持久化 Mock 业务流程。
 
 SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`；OpenAPI 变更后在 `frontend/` 运行 `pnpm generate:api`。提交源文件和生成结果，不手动修改生成类型。
 
@@ -109,4 +113,10 @@ SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.
 
 本地 Docker 守护进程尚未运行，容器镜像与 Compose 启动需要在具备 Docker 的环境中验证。公开营销页的 SSG、SEO 和多语言将在对应切片落地；当前账户和工作区页面均为 noindex。
 
-下一切片：Mock Provider 的申请／释放适配器、订单与独占租约状态机，验证幂等、并发分配与补偿；当前目录接口不表示这些流程已经实现。
+当前已完成 Mock 开发版号码、消息、订单／钱包、密钥、Webhook、River 与 SSE 业务闭环。使用说明、业务规则与签名协议见 [Mock 工作区](docs/mock-workspace.md)。真实供应商及支付尚未接入。
+
+## 概览与运行监控
+
+开发 seed 另为两个组织各补 30 天业务预览。登录 `owner@numdock.test` 后打开 `/app`，可查看号码快照、消息趋势、订单、模拟费用和每日明细；新组织没有样本时显示空状态。所有业务图表明确标为开发预览。
+
+OpenTelemetry 采集真实 API 请求的 traces／metrics，OTLP 端点为空时不向外导出。独立 Grafana 本地栈与预置 API 看板见 [`docs/observability.md`](docs/observability.md)，启动命令为 `docker compose -f compose.observability.yaml up -d`。业务看板不依赖 Grafana。

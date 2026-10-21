@@ -1,9 +1,9 @@
 openapi: 3.0.3
 info:
   title: NumDock API
-  version: 0.2.0
+  version: 0.3.0
   description: |
-    Identity and organization API for NumDock.
+    Identity, organization, and development catalog API for NumDock.
 
     ## Authentication and CSRF
     Browser sessions use HttpOnly cookies. Before a state-changing request,
@@ -45,6 +45,8 @@ tags:
     description: Registration, login, logout, CSRF, and the current identity.
   - name: Organizations
     description: Organizations visible to the authenticated user.
+  - name: Catalog
+    description: Explicitly marked read-only development inventory.
 externalDocs:
   description: Interactive API reference
   url: /docs/api
@@ -313,6 +315,62 @@ paths:
           $ref: '#/components/responses/InternalServerError'
         '504':
           $ref: '#/components/responses/GatewayTimeout'
+  /v1/catalog/numbers:
+    get:
+      tags: [Catalog]
+      operationId: listCatalogNumbers
+      summary: List the development number catalog
+      description: |
+        Authenticated read-only catalog. Only APP_ENV=development exposes seeded
+        mock inventory; all other modes return an empty list with mode=disabled,
+        even if fixture rows exist. Mock numbers and prices are synthetic and
+        cannot be purchased or used to receive messages. No live provider is connected.
+        Filters combine with AND. Search is a case-insensitive literal substring
+        over number, country name, region, and provider (not SQL wildcards).
+        Ordering is stable with an ID tie-breaker. Total counts all matching rows.
+        Unknown and repeated query parameters are rejected.
+      security:
+        - Session: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: country
+          in: query
+          schema: {type: string, pattern: '^[A-Z]{2}$'}
+          description: Two-letter uppercase country code, for example US or CA.
+        - name: number_type
+          in: query
+          schema: {type: string, enum: [mobile, local, toll_free]}
+        - name: capability
+          in: query
+          schema: {type: string, enum: [sms, voice, mms]}
+        - name: q
+          in: query
+          schema: {type: string, maxLength: 100}
+        - name: sort
+          in: query
+          schema: {type: string, enum: [e164, monthly_fee_minor, inbound_sms_fee_micros], default: e164}
+        - name: order
+          in: query
+          schema: {type: string, enum: [asc, desc], default: asc}
+      responses:
+        '200':
+          description: Mock catalog in development, or disabled catalog elsewhere.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/XRequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+        '504':
+          $ref: '#/components/responses/GatewayTimeout'
 components:
   securitySchemes:
     Session:
@@ -345,7 +403,7 @@ components:
     Limit:
       name: limit
       in: query
-      description: Maximum number of organizations to return.
+      description: Maximum number of items to return.
       schema:
         type: integer
         minimum: 1
@@ -354,7 +412,7 @@ components:
     Offset:
       name: offset
       in: query
-      description: Number of organizations to skip.
+      description: Number of items to skip.
       schema:
         type: integer
         minimum: 0
@@ -467,6 +525,47 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    CatalogItem:
+      type: object
+      additionalProperties: false
+      required: [id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status]
+      properties:
+        id: {type: string, format: uuid}
+        e164: {type: string, pattern: '^\+[1-9][0-9]{6,14}$'}
+        country_code: {type: string, pattern: '^[A-Z]{2}$'}
+        country_name: {type: string}
+        region: {type: string}
+        number_type: {type: string, enum: [mobile, local, toll_free]}
+        capabilities:
+          type: array
+          minItems: 1
+          items: {type: string, enum: [sms, voice, mms]}
+        provider: {type: string, enum: [NumDock Mock]}
+        source: {type: string, enum: [mock]}
+        currency: {type: string, enum: [USD]}
+        monthly_fee_minor:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Monthly demonstration price in minor currency units (USD cents).
+        inbound_sms_fee_micros:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Demonstration price per inbound SMS in millionths of one USD. Not a charge.
+        status: {type: string, enum: [available]}
+    CatalogList:
+      type: object
+      additionalProperties: false
+      required: [items, total, limit, offset, mode]
+      properties:
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/CatalogItem'}
+        total: {type: integer, format: int64, minimum: 0}
+        limit: {type: integer, minimum: 1, maximum: 100}
+        offset: {type: integer, minimum: 0, maximum: 2147483647}
+        mode: {type: string, enum: [mock, disabled]}
     Health:
       type: object
       required: [status]

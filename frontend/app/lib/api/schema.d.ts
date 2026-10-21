@@ -196,10 +196,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/catalog/numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the development number catalog
+         * @description Authenticated read-only catalog. Only APP_ENV=development exposes seeded
+         *     mock inventory; all other modes return an empty list with mode=disabled,
+         *     even if fixture rows exist. Mock numbers and prices are synthetic and
+         *     cannot be purchased or used to receive messages. No live provider is connected.
+         *     Filters combine with AND. Search is a case-insensitive literal substring
+         *     over number, country name, region, and provider (not SQL wildcards).
+         *     Ordering is stable with an ID tie-breaker. Total counts all matching rows.
+         *     Unknown and repeated query parameters are rejected.
+         */
+        get: operations["listCatalogNumbers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CatalogItem: {
+            /** Format: uuid */
+            id: string;
+            e164: string;
+            country_code: string;
+            country_name: string;
+            region: string;
+            /** @enum {string} */
+            number_type: "mobile" | "local" | "toll_free";
+            capabilities: ("sms" | "voice" | "mms")[];
+            /** @enum {string} */
+            provider: "NumDock Mock";
+            /** @enum {string} */
+            source: "mock";
+            /** @enum {string} */
+            currency: "USD";
+            /**
+             * Format: int32
+             * @description Monthly demonstration price in minor currency units (USD cents).
+             */
+            monthly_fee_minor: number;
+            /**
+             * Format: int32
+             * @description Demonstration price per inbound SMS in millionths of one USD. Not a charge.
+             */
+            inbound_sms_fee_micros: number;
+            /** @enum {string} */
+            status: "available";
+        };
+        CatalogList: {
+            items: components["schemas"]["CatalogItem"][];
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+        };
         Health: {
             /** @enum {string} */
             status: "ok" | "ready";
@@ -444,9 +509,9 @@ export interface components {
         Origin: string;
         /** @description Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie. */
         CSRF: string;
-        /** @description Maximum number of organizations to return. */
+        /** @description Maximum number of items to return. */
         Limit: number;
-        /** @description Number of organizations to skip. */
+        /** @description Number of items to skip. */
         Offset: number;
     };
     requestBodies: never;
@@ -698,9 +763,9 @@ export interface operations {
     listOrganizations: {
         parameters: {
             query?: {
-                /** @description Maximum number of organizations to return. */
+                /** @description Maximum number of items to return. */
                 limit?: components["parameters"]["Limit"];
-                /** @description Number of organizations to skip. */
+                /** @description Number of items to skip. */
                 offset?: components["parameters"]["Offset"];
             };
             header?: never;
@@ -717,6 +782,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OrganizationList"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            500: components["responses"]["InternalServerError"];
+            504: components["responses"]["GatewayTimeout"];
+        };
+    };
+    listCatalogNumbers: {
+        parameters: {
+            query?: {
+                /** @description Maximum number of items to return. */
+                limit?: components["parameters"]["Limit"];
+                /** @description Number of items to skip. */
+                offset?: components["parameters"]["Offset"];
+                /** @description Two-letter uppercase country code, for example US or CA. */
+                country?: string;
+                number_type?: "mobile" | "local" | "toll_free";
+                capability?: "sms" | "voice" | "mms";
+                q?: string;
+                sort?: "e164" | "monthly_fee_minor" | "inbound_sms_fee_micros";
+                order?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Mock catalog in development, or disabled catalog elsewhere. */
+            200: {
+                headers: {
+                    "X-Request-ID": components["headers"]["XRequestID"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CatalogList"];
                 };
             };
             400: components["responses"]["BadRequest"];

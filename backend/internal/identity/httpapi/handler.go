@@ -303,6 +303,16 @@ func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (identity.
 	return user, true
 }
 
+// Authenticate reuses the same session validation for read-only domain APIs.
+func (h *Handler) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := h.currentUser(w, r); !ok {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.currentUser(w, r)
 	if !ok {

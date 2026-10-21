@@ -1,6 +1,6 @@
 # NumDock
 
-面向授权通信业务的号码与消息工作区。当前交付的是第一阶段的身份切片：真实 PostgreSQL 注册、组织所有者成员关系、登录、当前账户查询、退出和会话撤销，以及对应的前端界面。
+面向授权通信业务的号码与消息工作区。当前已实现身份切片和开发环境只读号码目录：真实 PostgreSQL 注册、登录、组织查询与会话撤销，以及数据库驱动的模拟目录。产品尚未形成号码购买、租约、短信和计费的业务闭环。详细盘点见 [`docs/project-status.md`](docs/project-status.md)。
 
 ## 当前边界
 
@@ -10,8 +10,8 @@
 - Cookie 会话有效期 12 小时，数据库仅保存会话令牌摘要；密码使用带随机盐的 Argon2id。
 - 身份变更接口执行 Origin + CSRF 校验；认证限流记录在 PostgreSQL，跨进程共享。通过 `TRUSTED_PROXIES` 配置可信代理 IP/CIDR；仅当直接对端是可信代理时才解析 `X-Forwarded-For`，默认不信任转发头。
 - 界面支持英文与简体中文，使用 i18next + react-i18next；语言偏好通过 Cookie 持久化，并同步 SSR 首屏、页面标题、校验与错误提示。维护说明见 `frontend/docs/i18n.md`。
-- 号码、订单、供应商、短信、账本、River、Redis、OpenTelemetry 和公开营销页面尚未实现。不会显示虚假库存或交易数据。
-- 工作台只展示来自身份服务的真实用户与组织数据；未接入的号码、消息、账单和 API 页面使用明确的“未接入 / 计划中”状态，不显示模拟库存、验证码、余额或运营商状态。
+- 已有首页、平台、安全、状态与 API 文档公开页面。真实供应商、号码申请、订单、租约、短信、账本、River、Redis 和 OpenTelemetry 尚未实现。
+- 工作台展示真实用户与组织数据；开发环境号码目录从 PostgreSQL 读取明确标识的模拟库存与报价，不显示虚构余额、真实供应商状态或第三方验证能力。模拟号码不可购买或收信。非开发模式目录返回空列表与 `mode=disabled`。
 - 目前还没有邮箱验证、密码找回、邀请成员、API Key 管理或生产合规工作流。这是开发基础切片，不是完整生产发布版本。
 
 ## 目录
@@ -20,6 +20,8 @@
 backend/
   cmd/api/             API 入口与显式迁移命令
   internal/identity/   身份领域：用例、HTTP 适配与 PostgreSQL 适配
+  internal/catalog/    开发只读目录、筛选与分页
+  internal/devseed/    显式开发用户、组织与目录初始化
   internal/platform/   配置、HTTP 响应与通用中间件
   internal/server/     HTTP composition root 与集成测试
   db/migrations/       数据库迁移
@@ -56,6 +58,7 @@ Scalar 页面会在浏览器中直接加载契约，导航、接口说明、参�
 
    ```powershell
    ./scripts/backend.ps1 migrate
+   ./scripts/backend.ps1 seed # 可选：创建开发用户和模拟目录
    ./scripts/backend.ps1 run
    ```
 
@@ -67,7 +70,7 @@ Scalar 页面会在浏览器中直接加载契约，导航、接口说明、参�
    pnpm dev
    ```
 
-打开 **http://localhost:3000**，创建自己的测试账户。前端通过同源 `/v1` 代理访问 `127.0.0.1:8080`。若 3000 被占用，Vite 会自动尝试 3001、3002……并打印实际地址；开发代理会把 localhost 的 `/v1` Origin 重写为 `APP_ORIGIN`（默认 `http://localhost:3000`），因此本地注册和登录仍然可用。生产环境不启用该重写，浏览器 Origin 仍必须与 `APP_ORIGIN` 完全一致；不要混用 `localhost` 和 `127.0.0.1`。
+打开 **http://localhost:3000**，创建自己的测试账户，或使用 seed 生成的 `owner@numdock.test`。随机密码保存在 Git 忽略的 `.local/dev-seed-password`（如显式配置 `DEV_SEED_PASSWORD` 则使用配置值）。初始化与账号说明见 [`docs/development-data.md`](docs/development-data.md)。目录入口为 `/app/numbers?tab=catalog`。前端通过同源 `/v1` 代理访问 `127.0.0.1:8080`。若 3000 被占用，Vite 会自动尝试 3001、3002……并打印实际地址；开发代理会把 localhost 的 `/v1` Origin 重写为 `APP_ORIGIN`（默认 `http://localhost:3000`），因此本地注册和登录仍然可用。生产环境不启用该重写，浏览器 Origin 仍必须与 `APP_ORIGIN` 完全一致；不要混用 `localhost` 和 `127.0.0.1`。
 
 本次开发环境使用的独立数据库位于被 Git 忽略的 `.local/postgres/`，监听 `127.0.0.1:55432`；随机密码和连接串保存在 `.local/`。Windows 脚本在没有根目录 `.env` 时可读取 `.local/dev.env`。不要同时启动占用同一端口的 Docker 数据库。
 
@@ -102,8 +105,8 @@ SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.
 
 后端 Docker 构建上下文为 `backend/`，可用 `docker build -t numdock-api backend` 构建。容器内需设置 `HTTP_ADDR=0.0.0.0:8080`，数据库迁移使用同一镜像执行 `/api -migrate`，不在 API 启动时隐式迁移。
 
-前端产物位于 `frontend/build/client/`，静态托管需将路由回退到 `index.html`，并将 `/v1` 转发到 Go API。生产入口必须使用 HTTPS、准确的 `APP_ORIGIN` 与 `COOKIE_SECURE=true`；安全 Cookie 使用 `__Host-` 前缀。部署反向代理时，将代理 IP/CIDR 写入 `TRUSTED_PROXIES`，并确保代理覆盖或追加 `X-Forwarded-For`。当前没有跨域 Cookie / CORS 部署方案。
+前端产物位于 `frontend/build/client/`，静态托管需将路由回退到 `index.html`，并将 `/v1` 转发到 Go API。生产入口必须使用 `APP_ENV=production`、HTTPS、准确的 `APP_ORIGIN` 与 `COOKIE_SECURE=true`；安全 Cookie 使用 `__Host-` 前缀。部署反向代理时，将代理 IP/CIDR 写入 `TRUSTED_PROXIES`，并确保代理覆盖或追加 `X-Forwarded-For`。当前没有跨域 Cookie / CORS 部署方案。
 
 本地 Docker 守护进程尚未运行，容器镜像与 Compose 启动需要在具备 Docker 的环境中验证。公开营销页的 SSG、SEO 和多语言将在对应切片落地；当前账户和工作区页面均为 noindex。
 
-下一切片：Mock Provider、号码目录、订单和独占租约状态机，先验证并发与幂等，再接入真实授权供应商。
+下一切片：Mock Provider 的申请／释放适配器、订单与独占租约状态机，验证幂等、并发分配与补偿；当前目录接口不表示这些流程已经实现。

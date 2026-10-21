@@ -17,7 +17,7 @@ add endpoint behavior here without updating the contract.
 
 ## Current scope
 
-The API currently contains the identity slice:
+The API contains identity and an explicitly marked development catalog:
 
 | Category | Endpoints | Status |
 | --- | --- | --- |
@@ -25,11 +25,10 @@ The API currently contains the identity slice:
 | Documentation | `GET /v1/openapi.yaml` | Implemented |
 | Identity | `GET /v1/auth/csrf`, `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `GET /v1/me` | Implemented |
 | Organizations | `GET /v1/organizations` | Implemented |
-| Catalog, inventory, orders, leases, messaging, billing, providers, realtime | — | Not implemented yet |
+| Catalog | `GET /v1/catalog/numbers` | Read-only PostgreSQL mock catalog in development; disabled elsewhere |
+| Inventory allocation, orders, leases, messaging, billing, providers, realtime | — | Not implemented yet |
 
-The API does not return fake inventory, prices, messages, or provider status.
-Future domains will be added here and in the OpenAPI contract as they are
-implemented.
+Development catalog records are synthetic, marked `source=mock` and `mode=mock`, and cannot be purchased or receive messages. Production returns `mode=disabled` and no catalog records. No real supplier status, wallet balance, or transaction is simulated. See [development data](../../docs/development-data.md) and [catalog reference](catalog.md).
 
 ## Base URLs
 

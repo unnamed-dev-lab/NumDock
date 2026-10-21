@@ -9,6 +9,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"numdock/backend/internal/catalog"
+	cataloghttp "numdock/backend/internal/catalog/httpapi"
+	catalogpostgres "numdock/backend/internal/catalog/postgres"
 	"numdock/backend/internal/identity"
 	identityhttp "numdock/backend/internal/identity/httpapi"
 	identitypostgres "numdock/backend/internal/identity/postgres"
@@ -57,6 +60,7 @@ func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger) (http.Handler
 			_, _ = w.Write(openapi.Spec)
 		})
 		identityHandler.Routes(v1)
+		cataloghttp.New(catalog.NewService(catalogpostgres.New(pool), c.Environment == "development"), logger).Routes(v1, identityHandler.Authenticate)
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, 404, "not_found", "This endpoint does not exist.")

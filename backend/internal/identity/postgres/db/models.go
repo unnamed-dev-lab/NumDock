@@ -14,6 +14,23 @@ type AuthRateLimit struct {
 	ExpiresAt pgtype.Timestamptz
 }
 
+type CatalogItem struct {
+	ID                  string
+	E164                string
+	CountryCode         string
+	CountryName         string
+	Region              string
+	NumberType          string
+	Capabilities        []string
+	Provider            string
+	Source              string
+	Currency            string
+	MonthlyFeeMinor     int32
+	InboundSmsFeeMicros int32
+	Status              string
+	CreatedAt           pgtype.Timestamptz
+}
+
 type Membership struct {
 	UserID         string
 	OrganizationID string

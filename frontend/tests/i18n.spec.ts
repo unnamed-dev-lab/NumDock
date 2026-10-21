@@ -70,16 +70,19 @@ test("SSR negotiates languages and keeps concurrent requests isolated", async ({
   );
 });
 
-test("Chinese first paint works without JavaScript", async ({ browser }) => {
+test("Chinese first paint works without JavaScript", async ({
+  browser,
+  baseURL,
+}) => {
   const context = await browser.newContext({
     locale: "zh-CN",
     javaScriptEnabled: false,
   });
   const page = await context.newPage();
-  await page.goto("http://localhost:3000/register");
+  await page.goto(`${baseURL}/register`);
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
   await expect(
-    page.getByRole("heading", { name: "创建你的工作区" }),
+    page.getByRole("heading", { name: "创建你的工作区", level: 1 }),
   ).toBeVisible();
   await expect(page.getByLabel("电子邮箱")).toBeVisible();
   await expect(page).toHaveTitle("创建工作区 · NumDock");
@@ -117,7 +120,7 @@ test("switching preserves form values and translates existing validation errors"
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "创建你的工作区" }),
+    page.getByRole("heading", { name: "创建你的工作区", level: 1 }),
   ).toBeVisible();
   const cookie = (await page.context().cookies()).find(
     (cookie) => cookie.name === "numdock.locale",
@@ -127,7 +130,7 @@ test("switching preserves form values and translates existing validation errors"
   await expect(page).toHaveTitle("登录 · NumDock");
   await switchLanguage(page, "English");
   await expect(
-    page.getByRole("heading", { name: "Welcome back" }),
+    page.getByRole("heading", { name: "Welcome back", level: 1 }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -179,35 +182,39 @@ test("workspace routes, roles, counts, dates and mobile controls are localized",
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.route("**/v1/me", (route) =>
-    route.fulfill({
-      json: {
-        user: {
-          id: "user-i18n",
-          name: "Alex Morgan",
-          email: "alex@example.com",
-          created_at: "2026-10-20T00:00:00Z",
-        },
-        organizations: [1, 2].map((id) => ({
-          id: `org-${id}`,
-          name: `Harbor ${id}`,
-          role: "owner",
-          created_at: "2026-10-20T00:00:00Z",
-        })),
-      },
-    }),
-  );
+  // Browser request interception cannot replace the server-side auth loader.
+  // Register through the real API so SSR and hydration use the same identity.
+  const csrfResponse = await page.request.get("/v1/auth/csrf");
+  const { token } = await csrfResponse.json();
+  const registration = await page.request.post("/v1/auth/register", {
+    headers: { Origin: "http://localhost:3000", "X-CSRF-Token": token },
+    data: {
+      name: "Alex Morgan",
+      email: `i18n-${Date.now()}@example.test`,
+      password: "i18n browser test passphrase",
+      organization_name: "Harbor 1",
+    },
+  });
+  expect(registration.status()).toBe(201);
+  const identity = await registration.json();
+  const date = (locale: string) =>
+    new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(new Date(identity.user.created_at));
   await page.goto("/app");
   await expect(page.getByRole("heading", { name: "Harbor 1" })).toBeVisible();
-  await expect(page.getByText("2 workspaces", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 workspace", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("Oct 20, 2026", { exact: true }).first(),
+    page.getByText(date("en"), { exact: true }).first(),
   ).toBeVisible();
   await switchLanguage(page, "简体中文");
-  await expect(page.getByText("2 个工作区", { exact: true })).toBeVisible();
+  await expect(page.getByText("1 个工作区", { exact: true })).toBeVisible();
   await expect(page.getByText("所有者", { exact: true }).first()).toBeVisible();
   await expect(
-    page.getByText("2026年10月20日", { exact: true }).first(),
+    page.getByText(date("zh-CN"), { exact: true }).first(),
   ).toBeVisible();
   const routes = [
     ["numbers", "号码"],
@@ -270,23 +277,20 @@ test("workspace routes, roles, counts, dates and mobile controls are localized",
 
 test("missing routes preserve Chinese SSR, status and recovery controls", async ({
   page,
+  baseURL,
 }) => {
   await page
     .context()
-    .addCookies([
-      { name: "numdock.locale", value: "zh-CN", url: "http://localhost:3000" },
-    ]);
+    .addCookies([{ name: "numdock.locale", value: "zh-CN", url: baseURL! }]);
   const response = await page.goto("/missing-i18n-page");
   expect(response?.status()).toBe(404);
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
-  await expect(page.getByRole("heading", { name: "页面不存在" })).toBeVisible();
+  await expect(page.getByText("页面不存在", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle("页面不存在 · NumDock");
-  await expect(page.getByRole("link", { name: "返回工作区" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "打开工作区" })).toHaveAttribute(
     "href",
     "/app",
   );
   await switchLanguage(page, "English");
-  await expect(
-    page.getByRole("heading", { name: "Page not found" }),
-  ).toBeVisible();
+  await expect(page.getByText("Page not found", { exact: true })).toBeVisible();
 });

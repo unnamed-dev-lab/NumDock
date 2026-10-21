@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	Environment    string
 	DatabaseURL    string
 	Address        string
 	AppOrigin      string
@@ -17,11 +18,18 @@ type Config struct {
 
 func Load() (Config, error) {
 	c := Config{
+		Environment:    os.Getenv("APP_ENV"),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
 		Address:        os.Getenv("HTTP_ADDR"),
 		AppOrigin:      os.Getenv("APP_ORIGIN"),
 		SecureCookies:  os.Getenv("COOKIE_SECURE") != "false",
 		TrustedProxies: splitList(os.Getenv("TRUSTED_PROXIES")),
+	}
+	if c.Environment == "" {
+		c.Environment = "production"
+	}
+	if c.Environment != "production" && c.Environment != "development" && c.Environment != "test" {
+		return c, errors.New("APP_ENV must be production, development, or test")
 	}
 	if c.Address == "" {
 		c.Address = "127.0.0.1:8080"

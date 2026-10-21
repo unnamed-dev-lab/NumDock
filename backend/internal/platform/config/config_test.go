@@ -50,3 +50,17 @@ func TestProductionRequiresSecureOriginAndCookie(t *testing.T) {
 		})
 	}
 }
+
+func TestEnvironmentMustBeExplicitForDevelopment(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+	t.Setenv("APP_ORIGIN", "http://localhost:3000")
+	t.Setenv("APP_ENV", "")
+	c, err := Load()
+	if err != nil || c.Environment != "production" {
+		t.Fatal("environment did not default to production")
+	}
+	t.Setenv("APP_ENV", "developmnt")
+	if _, err := Load(); err == nil {
+		t.Fatal("invalid environment accepted")
+	}
+}

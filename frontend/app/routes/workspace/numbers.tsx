@@ -9,17 +9,15 @@ import {
   StatusBadge,
 } from "@/features/workspace/workspace-ui";
 import { CatalogView } from "@/features/catalog/catalog-view";
-import {
-  useHydratedCatalogStore,
-  type NumbersTab,
-} from "@/features/catalog/catalog-store";
+import { useSearchParams } from "react-router";
 
 export const meta: MetaFunction = ({ matches }) =>
   localizedMeta(matches, "workspace.numbers");
 
 export default function NumbersRoute() {
   const { t } = useTranslation();
-  const { activeTab, setActiveTab } = useHydratedCatalogStore();
+  const [params, setParams] = useSearchParams();
+  const activeTab = params.get("tab") === "catalog" ? "catalog" : "numbers";
 
   return (
     <div className="space-y-8">
@@ -30,8 +28,8 @@ export default function NumbersRoute() {
           "workspace.provisionAndManageAuthorizedVirtualNumbersInventory",
         )}
         status={
-          <StatusBadge tone="active">
-            {t("workspace.active", { defaultValue: "运行中" })}
+          <StatusBadge tone="neutral">
+            {t("workspace.provisioningNotEnabled")}
           </StatusBadge>
         }
       />
@@ -40,7 +38,14 @@ export default function NumbersRoute() {
         value={activeTab}
         onValueChange={(val) => {
           if (val === "numbers" || val === "catalog") {
-            setActiveTab(val as NumbersTab);
+            setParams(
+              (previous) => {
+                const next = new URLSearchParams(previous);
+                next.set("tab", val);
+                return next;
+              },
+              { preventScrollReset: true },
+            );
           }
         }}
         className="flex-col gap-4"

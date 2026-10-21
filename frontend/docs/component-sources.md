@@ -47,3 +47,7 @@ The app-owned `features/` modules contain business validation, API calls and pag
 ## i18n 定制
 
 语言菜单复用已通过 CLI 安装的 Base UI DropdownMenu 和 beUI Button；没有新增基础交互组件。已有 beUI 移动侧边栏遮罩关闭标签和 shadcn Dialog 关闭文案接入 react-i18next，业务侧边栏入口传入本地化标签。
+
+## 开发目录接口接入
+
+此切片没有安装新组件，复用既有 beUI Input／Button、Base UI Select／Badge／Tabs 和应用 DataTable。筛选器使用官方 `Select.Root.items` 标签映射（见 [Base UI Select 文档](https://base-ui.com/react/components/select)），避免把内部值 `all` 显示为用户文案。表格服务端分页接入 [TanStack Table 的 manualPagination 和 rowCount](https://tanstack.com/table/v8/docs/guide/pagination)，并同步采用服务端筛选和排序；补齐排序 ARIA 状态与每页条数标签。

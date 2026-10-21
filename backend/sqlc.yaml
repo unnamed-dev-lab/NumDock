@@ -9,3 +9,21 @@ sql:
         out: internal/identity/postgres/db
         sql_package: pgx/v5
         emit_empty_slices: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: internal/catalog/postgres/queries
+    gen:
+      go:
+        package: db
+        out: internal/catalog/postgres/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: internal/devseed/queries
+    gen:
+      go:
+        package: db
+        out: internal/devseed/db
+        sql_package: pgx/v5
+        emit_empty_slices: true

@@ -31,6 +31,8 @@ interface DataTableProps<TData, TValue> {
   emptyState?: React.ReactNode;
   className?: string;
   defaultPageSize?: number;
+  manual?: boolean;
+  rowCount?: number;
 
   // Optional external controlled states (e.g. for Zustand persistence)
   pageIndex?: number;
@@ -51,6 +53,8 @@ export function DataTable<TData, TValue>({
   emptyState,
   className,
   defaultPageSize = 10,
+  manual = false,
+  rowCount,
   pageIndex,
   pageSize,
   onPaginationChange,
@@ -62,7 +66,9 @@ export function DataTable<TData, TValue>({
   onSortingChange,
 }: DataTableProps<TData, TValue>) {
   const { t } = useTranslation();
-  const [internalSorting, setInternalSorting] = React.useState<SortingState>([]);
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>(
+    [],
+  );
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([]);
   const [internalGlobalFilter, setInternalGlobalFilter] =
@@ -126,6 +132,10 @@ export function DataTable<TData, TValue>({
     },
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
+    manualPagination: manual,
+    manualFiltering: manual,
+    manualSorting: manual,
+    rowCount,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -146,6 +156,15 @@ export function DataTable<TData, TValue>({
                 {headerGroup.headers.map((header) => (
                   <TableHead
                     key={header.id}
+                    aria-sort={
+                      header.column.getCanSort()
+                        ? header.column.getIsSorted() === "asc"
+                          ? "ascending"
+                          : header.column.getIsSorted() === "desc"
+                            ? "descending"
+                            : "none"
+                        : undefined
+                    }
                     className="h-10 text-muted-foreground"
                   >
                     {header.isPlaceholder

@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"numdock/backend/db"
+	"numdock/backend/internal/devseed"
 	identitypostgres "numdock/backend/internal/identity/postgres"
 	"numdock/backend/internal/platform/config"
 	"numdock/backend/internal/server"
@@ -29,10 +30,17 @@ func main() {
 
 func run(logger *slog.Logger) error {
 	migrate := flag.Bool("migrate", false, "apply database migrations and exit")
+	seed := flag.Bool("seed", false, "initialize development fixtures and exit (requires APP_ENV=development)")
 	flag.Parse()
+	if *migrate && *seed {
+		return errors.New("run -migrate and -seed separately")
+	}
 	c, err := config.Load()
 	if err != nil {
 		return err
+	}
+	if *seed && c.Environment != "development" {
+		return errors.New("seed requires APP_ENV=development")
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -52,6 +60,15 @@ func run(logger *slog.Logger) error {
 	defer pool.Close()
 	if err := pool.Ping(ctx); err != nil {
 		return errors.New("database connection failed")
+	}
+	if *seed {
+		seedCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		defer cancel()
+		if err := devseed.Run(seedCtx, pool, c.Environment, os.Getenv("DEV_SEED_PASSWORD")); err != nil {
+			return err
+		}
+		logger.Info("development fixtures ready", "users", 4, "organizations", 2, "catalog_items", 24)
+		return nil
 	}
 	handler, err := server.New(pool, c, logger)
 	if err != nil {

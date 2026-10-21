@@ -23,6 +23,14 @@ func hashPassword(password string) (string, error) {
 	return hashPrefix + base64.RawStdEncoding.EncodeToString(salt) + "$" + base64.RawStdEncoding.EncodeToString(hash), nil
 }
 
+// HashPassword validates and hashes a password for explicit account provisioning.
+func HashPassword(password string) (string, error) {
+	if err := ValidatePassword(password); err != nil {
+		return "", err
+	}
+	return hashPassword(password)
+}
+
 func verifyPassword(password, encoded string) bool {
 	if !strings.HasPrefix(encoded, hashPrefix) {
 		return false

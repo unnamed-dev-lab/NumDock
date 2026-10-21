@@ -28,7 +28,8 @@ export function DataTablePagination<TData>({
     <div className="flex flex-col gap-4 px-2 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="text-xs text-muted-foreground">
         {t("workspace.tableTotalRows", {
-          total: table.getFilteredRowModel().rows.length,
+          total:
+            table.options.rowCount ?? table.getFilteredRowModel().rows.length,
         })}
       </div>
       <div className="flex flex-wrap items-center gap-4 sm:gap-6">
@@ -44,8 +45,14 @@ export function DataTablePagination<TData>({
               }
             }}
           >
-            <SelectTrigger size="sm" className="h-8 w-20">
-              <SelectValue placeholder={`${table.getState().pagination.pageSize}`} />
+            <SelectTrigger
+              size="sm"
+              className="h-8 w-20"
+              aria-label={t("workspace.rowsPerPage")}
+            >
+              <SelectValue
+                placeholder={`${table.getState().pagination.pageSize}`}
+              />
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 50].map((pageSize) => (
@@ -108,4 +115,3 @@ export function DataTablePagination<TData>({
     </div>
   );
 }
-

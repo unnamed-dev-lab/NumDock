@@ -5,13 +5,17 @@
     "bunx --bun shadcn@4.22.1 add @beui/input @beui/theme-toggle @beui/animated-sidebar --yes --overwrite",
     "bunx --bun shadcn@4.22.1 add @beui/button-base dropdown-menu table --yes --overwrite",
     "bunx --bun shadcn@4.22.1 add badge card tabs dialog select switch separator tooltip button --yes",
-    "bunx --bun shadcn@4.22.1 add @beui/not-found-stacked --overwrite --yes"
+    "bunx --bun shadcn@4.22.1 add @beui/not-found-stacked --overwrite --yes",
+    "bunx --bun shadcn@4.22.1 add chart --yes",
+    "bunx --bun shadcn@4.22.1 add @beui/text-cascade --yes"
   ],
   "components": [
     {
       "item": "@beui/input",
       "registry": "https://beui.dev/r/input.json",
-      "files": ["app/components/motion/input.tsx"]
+      "files": [
+        "app/components/motion/input.tsx"
+      ]
     },
     {
       "item": "@beui/theme-toggle",
@@ -32,7 +36,9 @@
     {
       "item": "@beui/button-base",
       "registry": "https://beui.dev/r/button-base.json",
-      "files": ["app/components/motion/button/base.tsx"]
+      "files": [
+        "app/components/motion/button/base.tsx"
+      ]
     },
     {
       "item": "@beui/not-found-stacked",
@@ -46,85 +52,128 @@
       "item": "@shadcn/dropdown-menu",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/dropdown-menu.json",
-      "files": ["app/components/ui/dropdown-menu.tsx"]
+      "files": [
+        "app/components/ui/dropdown-menu.tsx"
+      ]
     },
     {
       "item": "@shadcn/table",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/table.json",
-      "files": ["app/components/ui/table.tsx"]
+      "files": [
+        "app/components/ui/table.tsx"
+      ]
     },
     {
       "item": "@shadcn/badge",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/badge.json",
-      "files": ["app/components/ui/badge.tsx"]
+      "files": [
+        "app/components/ui/badge.tsx"
+      ]
     },
     {
       "item": "@shadcn/card",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/card.json",
-      "files": ["app/components/ui/card.tsx"]
+      "files": [
+        "app/components/ui/card.tsx"
+      ]
     },
     {
       "item": "@shadcn/tabs",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/tabs.json",
-      "files": ["app/components/ui/tabs.tsx"]
+      "files": [
+        "app/components/ui/tabs.tsx"
+      ]
     },
     {
       "item": "@shadcn/select",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/select.json",
-      "files": ["app/components/ui/select.tsx"]
+      "files": [
+        "app/components/ui/select.tsx"
+      ]
     },
     {
       "item": "@shadcn/switch",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/switch.json",
-      "files": ["app/components/ui/switch.tsx"]
+      "files": [
+        "app/components/ui/switch.tsx"
+      ]
     },
     {
       "item": "@shadcn/separator",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/separator.json",
-      "files": ["app/components/ui/separator.tsx"]
+      "files": [
+        "app/components/ui/separator.tsx"
+      ]
     },
     {
       "item": "@shadcn/tooltip",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/tooltip.json",
-      "files": ["app/components/ui/tooltip.tsx"]
+      "files": [
+        "app/components/ui/tooltip.tsx"
+      ]
     },
     {
       "item": "@shadcn/button",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/button.json",
-      "files": ["app/components/ui/button.tsx"]
+      "files": [
+        "app/components/ui/button.tsx"
+      ]
     },
     {
       "item": "@shadcn/dialog",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/dialog.json",
-      "files": ["app/components/ui/dialog.tsx"]
+      "files": [
+        "app/components/ui/dialog.tsx"
+      ]
     },
     {
       "item": "@shadcn/textarea",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/textarea.json",
-      "files": ["app/components/ui/textarea.tsx"]
+      "files": [
+        "app/components/ui/textarea.tsx"
+      ]
     },
     {
       "item": "@shadcn/label",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/label.json",
-      "files": ["app/components/ui/label.tsx"]
+      "files": [
+        "app/components/ui/label.tsx"
+      ]
     },
     {
       "item": "@shadcn/input",
       "base": "base-ui",
       "registry": "https://ui.shadcn.com/r/styles/base-vega/input.json",
-      "files": ["app/components/ui/input.tsx"]
+      "files": [
+        "app/components/ui/input.tsx"
+      ]
+    },
+    {
+      "item": "@shadcn/chart",
+      "base": "base-ui",
+      "registry": "https://ui.shadcn.com/r/styles/base-vega/chart.json",
+      "files": [
+        "app/components/ui/chart.tsx"
+      ]
+    },
+    {
+      "item": "@beui/text-cascade",
+      "registry": "https://beui.dev/r/text-cascade.json",
+      "files": [
+        "app/components/motion/text-cascade.tsx"
+      ]
     }
   ]
 }

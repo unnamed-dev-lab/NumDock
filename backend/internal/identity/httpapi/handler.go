@@ -306,10 +306,11 @@ func (h *Handler) currentUser(w http.ResponseWriter, r *http.Request) (identity.
 // Authenticate reuses the same session validation for read-only domain APIs.
 func (h *Handler) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := h.currentUser(w, r); !ok {
+		user, ok := h.currentUser(w, r)
+		if !ok {
 			return
 		}
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), userContextKey{}, user)))
 	})
 }
 
@@ -444,3 +445,13 @@ func mapIdentity(value identity.Identity) Identity {
 		Organizations: organizations,
 	}
 }
+
+type userContextKey struct{}
+
+func UserFromContext(ctx context.Context) (identity.User, bool) {
+	user, ok := ctx.Value(userContextKey{}).(identity.User)
+	return user, ok
+}
+
+// Protect applies the browser Origin and double-submit CSRF checks to workspace writes.
+func (h *Handler) Protect(next http.Handler) http.Handler { return h.protect(next) }

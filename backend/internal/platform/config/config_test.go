@@ -64,3 +64,28 @@ func TestEnvironmentMustBeExplicitForDevelopment(t *testing.T) {
 		t.Fatal("invalid environment accepted")
 	}
 }
+
+func TestTelemetryConfiguration(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/test")
+	t.Setenv("APP_ORIGIN", "http://localhost:3000")
+	t.Setenv("DATA_ENCRYPTION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+	t.Setenv("APP_ENV", "development")
+	t.Setenv("OTEL_ENABLED", "")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "")
+	c, err := Load()
+	if err != nil || !c.TelemetryEnabled || c.TelemetryServiceName == "" {
+		t.Fatal("development telemetry default incorrect")
+	}
+	t.Setenv("APP_ENV", "production")
+	c, err = Load()
+	if err != nil || c.TelemetryEnabled {
+		t.Fatal("production telemetry requires explicit enablement")
+	}
+	t.Setenv("OTEL_ENABLED", "true")
+	for _, endpoint := range []string{"https://user:secret@example.test", "not-a-url", "http://localhost:4318?token=secret"} {
+		t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", endpoint)
+		if _, err := Load(); err == nil {
+			t.Fatal("invalid OTLP endpoint accepted")
+		}
+	}
+}

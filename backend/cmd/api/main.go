@@ -16,7 +16,9 @@ import (
 	"numdock/backend/db"
 	"numdock/backend/internal/devseed"
 	identitypostgres "numdock/backend/internal/identity/postgres"
+	operationsruntime "numdock/backend/internal/operations/runtime"
 	"numdock/backend/internal/platform/config"
+	"numdock/backend/internal/platform/telemetry"
 	"numdock/backend/internal/server"
 )
 
@@ -61,16 +63,42 @@ func run(logger *slog.Logger) error {
 	if err := pool.Ping(ctx); err != nil {
 		return errors.New("database connection failed")
 	}
+	runtime, err := operationsruntime.New(pool, c.DataEncryptionKey, c.Environment == "development", logger)
+	if err != nil {
+		return err
+	}
 	if *seed {
 		seedCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		if err := devseed.Run(seedCtx, pool, c.Environment, os.Getenv("DEV_SEED_PASSWORD")); err != nil {
 			return err
 		}
-		logger.Info("development fixtures ready", "users", 4, "organizations", 2, "catalog_items", 24)
+		if err := devseed.Operations(seedCtx, runtime.Store); err != nil {
+			return err
+		}
+		logger.Info("development fixtures ready", "users", 4, "organizations", 2, "catalog_items", 24, "overview_days", 60)
 		return nil
 	}
-	handler, err := server.New(pool, c, logger)
+	shutdownTelemetry, err := telemetry.Init(ctx, c, logger)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		flushCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(flushCtx); err != nil {
+			logger.Warn("telemetry shutdown incomplete")
+		}
+	}()
+	if err = runtime.Start(ctx); err != nil {
+		return err
+	}
+	defer func() {
+		stopCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		_ = runtime.Stop(stopCtx)
+	}()
+	handler, err := server.New(pool, c, logger, server.WithOperations(runtime))
 	if err != nil {
 		return err
 	}

@@ -19,3 +19,8 @@ ON CONFLICT (user_id, organization_id) DO NOTHING;
 INSERT INTO catalog_items (id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status)
 VALUES ($1, $2, $3, $4, $5, $6, $7, 'NumDock Mock', 'mock', 'USD', $8, $9, 'available')
 ON CONFLICT (id) DO NOTHING;
+
+-- name: SeedOverviewDay :exec
+INSERT INTO development_overview_daily (organization_id, day, active_numbers, messages_received, messages_failed, orders_completed, spend_minor)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (organization_id, day) DO NOTHING;

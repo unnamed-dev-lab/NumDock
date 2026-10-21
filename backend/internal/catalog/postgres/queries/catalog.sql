@@ -1,6 +1,6 @@
 -- name: ListCatalogItems :many
 SELECT * FROM catalog_items
-WHERE (sqlc.arg(country)::text = '' OR country_code = sqlc.arg(country))
+WHERE status='available' AND (sqlc.arg(country)::text = '' OR country_code = sqlc.arg(country))
   AND (sqlc.arg(number_type)::text = '' OR number_type = sqlc.arg(number_type))
   AND (sqlc.arg(capability)::text = '' OR sqlc.arg(capability) = ANY(capabilities))
   AND (sqlc.arg(search)::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower(sqlc.arg(search))) > 0)
@@ -16,7 +16,7 @@ LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: CountCatalogItems :one
 SELECT count(*) FROM catalog_items
-WHERE (sqlc.arg(country)::text = '' OR country_code = sqlc.arg(country))
+WHERE status='available' AND (sqlc.arg(country)::text = '' OR country_code = sqlc.arg(country))
   AND (sqlc.arg(number_type)::text = '' OR number_type = sqlc.arg(number_type))
   AND (sqlc.arg(capability)::text = '' OR sqlc.arg(capability) = ANY(capabilities))
   AND (sqlc.arg(search)::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower(sqlc.arg(search))) > 0);

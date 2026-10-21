@@ -3,6 +3,7 @@ package httpserver
 import (
 	"context"
 	"fmt"
+	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -63,6 +64,7 @@ func Logging(logger *slog.Logger) func(http.Handler) http.Handler {
 					"bytes", wrapped.BytesWritten(),
 					"request_id", httpx.RequestID(r.Context()),
 					"duration_ms", time.Since(started).Milliseconds(),
+					"trace_id", trace.SpanContextFromContext(r.Context()).TraceID().String(),
 				)
 			}()
 			next.ServeHTTP(wrapped, r)

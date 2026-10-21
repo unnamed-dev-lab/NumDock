@@ -19,6 +19,6 @@
 
 Filters combine with AND. Unknown/repeated parameters and invalid enum/range values produce `400 validation_failed`. The ID is a stable ordering tie-breaker. `total` counts all matching records, even for an empty page past the end. An empty list is `[]`, never null.
 
-Response: `{items, total, limit, offset, mode}`. Each item includes `source=mock`, `provider=NumDock Mock`, `currency=USD`, integer `monthly_fee_minor` (cents) and integer `inbound_sms_fee_micros` (millionths of USD). These are demonstration prices, not charges.
+Response: `{items, total, limit, offset, mode}`. Each item includes `source=mock`, `provider=NumDock Mock`, `currency=USD`, integer `monthly_fee_minor` (cents) and integer `inbound_sms_fee_micros` (millionths of USD). The 30-day Mock lease deducts monthly_fee_minor from the development wallet; Mock SMS simulation is free.
 
-Only `APP_ENV=development` serves seeded data (`mode=mock`). Other modes return `mode=disabled`, `items=[]`, `total=0`, even against a seeded database. All requests still require authentication and validate parameters. There is no provisioning mutation, live provider, lease, or payment operation in this slice.
+Only `APP_ENV=development` serves seeded data (`mode=mock`). Other modes return `mode=disabled`, `items=[]`, `total=0`, even against a seeded database. All requests still require authentication and validate parameters. Only available inventory is listed. Development leasing, messages, wallets and refunds are documented in [Mock workspace](../../docs/mock-workspace.md). No live provider or payment is connected.

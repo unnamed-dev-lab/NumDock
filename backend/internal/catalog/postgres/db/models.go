@@ -8,6 +8,20 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ApiKey struct {
+	ID             string
+	OrganizationID string
+	UserID         string
+	Name           string
+	Prefix         string
+	TokenHash      []byte
+	Scopes         []string
+	CreatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	RevokedAt      pgtype.Timestamptz
+	LastUsedAt     pgtype.Timestamptz
+}
+
 type AuthRateLimit struct {
 	Key       string
 	Attempts  int32
@@ -31,16 +45,114 @@ type CatalogItem struct {
 	CreatedAt           pgtype.Timestamptz
 }
 
+type DevelopmentOverviewDaily struct {
+	OrganizationID   string
+	Day              pgtype.Date
+	ActiveNumbers    int32
+	MessagesReceived int32
+	MessagesFailed   int32
+	OrdersCompleted  int32
+	SpendMinor       int32
+	Source           string
+	SeededAt         pgtype.Timestamptz
+}
+
+type Lease struct {
+	ID                string
+	OrganizationID    string
+	OrderID           string
+	CatalogItemID     string
+	Status            string
+	ProviderReference string
+	StartedAt         pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	EndedAt           pgtype.Timestamptz
+	Source            string
+}
+
+type LedgerEntry struct {
+	ID             string
+	OrganizationID string
+	ReferenceID    string
+	Kind           string
+	AvailableDelta int64
+	ReservedDelta  int64
+	AvailableAfter int64
+	ReservedAfter  int64
+	Currency       string
+	Source         string
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Membership struct {
 	UserID         string
 	OrganizationID string
 	Role           string
 }
 
+type Message struct {
+	ID                string
+	OrganizationID    string
+	LeaseID           string
+	ProviderEventID   string
+	PayloadCiphertext []byte
+	ReceivedAt        pgtype.Timestamptz
+	ExpiresAt         pgtype.Timestamptz
+	ReadAt            pgtype.Timestamptz
+	Source            string
+}
+
+type OperationAudit struct {
+	ID             int64
+	OrganizationID string
+	UserID         pgtype.Text
+	Action         string
+	ResourceID     string
+	CreatedAt      pgtype.Timestamptz
+}
+
+type OperationLimit struct {
+	Key      string
+	Bucket   pgtype.Timestamptz
+	Attempts int32
+}
+
+type OperationRequest struct {
+	OrganizationID string
+	Operation      string
+	Key            string
+	RequestHash    []byte
+	Response       []byte
+	CreatedAt      pgtype.Timestamptz
+}
+
+type Order struct {
+	ID             string
+	OrganizationID string
+	UserID         string
+	CatalogItemID  string
+	Status         string
+	Purpose        string
+	AmountMinor    int64
+	Currency       string
+	FailureCode    string
+	Source         string
+	CreatedAt      pgtype.Timestamptz
+}
+
 type Organization struct {
 	ID        string
 	Name      string
 	CreatedAt pgtype.Timestamptz
+}
+
+type ProviderEvent struct {
+	ID                string
+	LeaseID           string
+	PayloadHash       []byte
+	PayloadCiphertext []byte
+	State             string
+	ReceivedAt        pgtype.Timestamptz
 }
 
 type Session struct {
@@ -56,4 +168,41 @@ type User struct {
 	Name         string
 	PasswordHash string
 	CreatedAt    pgtype.Timestamptz
+}
+
+type Wallet struct {
+	OrganizationID string
+	Currency       string
+	AvailableMinor int64
+	ReservedMinor  int64
+}
+
+type WebhookDelivery struct {
+	ID             string
+	EndpointID     string
+	OrganizationID string
+	EventID        int64
+	Status         string
+	Attempts       int32
+	ResponseStatus int32
+	NextAttemptAt  pgtype.Timestamptz
+	CreatedAt      pgtype.Timestamptz
+	UpdatedAt      pgtype.Timestamptz
+}
+
+type WebhookEndpoint struct {
+	ID               string
+	OrganizationID   string
+	Url              string
+	SecretCiphertext []byte
+	Enabled          bool
+	CreatedAt        pgtype.Timestamptz
+}
+
+type WorkspaceEvent struct {
+	ID             int64
+	OrganizationID string
+	Type           string
+	ResourceID     string
+	CreatedAt      pgtype.Timestamptz
 }

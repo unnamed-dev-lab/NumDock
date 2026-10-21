@@ -25,10 +25,12 @@ The API contains identity and an explicitly marked development catalog:
 | Documentation | `GET /v1/openapi.yaml` | Implemented |
 | Identity | `GET /v1/auth/csrf`, `POST /v1/auth/register`, `POST /v1/auth/login`, `POST /v1/auth/logout`, `GET /v1/me` | Implemented |
 | Organizations | `GET /v1/organizations` | Implemented |
+| Overview | `GET /v1/organizations/{organization_id}/overview` | Organization-authorized development summaries, empty/disabled elsewhere |
 | Catalog | `GET /v1/catalog/numbers` | Read-only PostgreSQL mock catalog in development; disabled elsewhere |
-| Inventory allocation, orders, leases, messaging, billing, providers, realtime | — | Not implemented yet |
+| Workspace | `/v1/organizations/{organization_id}/workspace`, `/orders`, `/leases/*/release`, `/billing/mock-credit`, `/messages/*`, `/api-keys/*`, `/webhooks/*`, `/events/stream` | Persistent Mock development workflows |
+| Provider ingress | `POST /v1/providers/mock/webhook` | Signed, deduplicated and lease-authorized development messages |
 
-Development catalog records are synthetic, marked `source=mock` and `mode=mock`, and cannot be purchased or receive messages. Production returns `mode=disabled` and no catalog records. No real supplier status, wallet balance, or transaction is simulated. See [development data](../../docs/development-data.md) and [catalog reference](catalog.md).
+Development records are marked Mock and disabled in production. The catalog lists only available numbers. Development wallets, leases, messages and webhook deliveries are persisted; no real carrier or payment is connected. See [Mock workspace](../../docs/mock-workspace.md) for business rules, idempotency, key scopes and webhook signatures.
 
 ## Base URLs
 
@@ -184,3 +186,11 @@ whose paths, operations, statuses, and schemas stay in parity with this one.
 - OpenAPI validation: contract responses are validated by
   `assertContract` in the integration tests.
 - Scalar frontend route: `frontend/app/routes/api-docs.tsx`
+
+## Overview and telemetry
+
+The overview endpoint accepts `days=7` or `30`, returns UTC daily samples and integer USD cents, checks membership and hides fixtures outside development. Telemetry configuration flags are not collector health. See [overview and observability](../../docs/observability.md). When HTTP instrumentation is enabled, `X-Trace-ID` correlates responses with request logs. Request bodies, credentials and query strings are excluded from telemetry.
+
+## Public feature status
+
+`GET /v1/status` is unauthenticated and returns aggregate API/database readiness, configured feature modes (`active`, `mock`, `disabled`, `unavailable`) and live provider/payment connection flags. It contains no tenant data or operational diagnostics. HTTP 200 means the status report was read; inspect dependency fields for readiness. Mock is enabled only in development. Responses are not cached by HTTP intermediaries.

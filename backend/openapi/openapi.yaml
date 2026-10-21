@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NumDock API
-  version: 0.3.0
+  version: 0.6.0
   description: |
     Identity, organization, and development catalog API for NumDock.
 
@@ -37,6 +37,8 @@ servers:
   - url: http://127.0.0.1:8080
     description: Direct local API
 tags:
+  - name: Workspace
+    description: Persistent Mock development workspace.
   - name: Health
     description: Liveness and readiness probes.
   - name: Documentation
@@ -47,10 +49,2018 @@ tags:
     description: Organizations visible to the authenticated user.
   - name: Catalog
     description: Explicitly marked read-only development inventory.
+  - name: Overview
+    description: Organization-scoped development dashboard.
 externalDocs:
   description: Interactive API reference
   url: /docs/api
 paths:
+  /v1/status:
+    get:
+      tags: [Health]
+      operationId: getPublicStatus
+      summary: Public readiness and configured feature modes
+      description: Public aggregate status only; no tenant data. Mock is development-only. A 200 response can report unavailable dependencies. Integration flags indicate configured adapters, not collector or carrier health.
+      security: []
+      responses:
+        "200":
+          description: Current aggregate readiness and feature configuration.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicStatus"
+  "/v1/organizations/{organization_id}/workspace":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "get":
+        {
+          "tags": ["Workspace"],
+          "operationId": "getWorkspace",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            {
+                              "$ref": "#/components/schemas/WorkspaceSnapshot",
+                            },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "parameters":
+            [
+              {
+                "name": "view",
+                "in": "query",
+                "schema":
+                  {
+                    "type": "string",
+                    "enum":
+                      [
+                        "numbers",
+                        "orders",
+                        "ledger",
+                        "messages",
+                        "keys",
+                        "webhooks",
+                        "deliveries",
+                      ],
+                  },
+              },
+              {
+                "name": "status",
+                "in": "query",
+                "schema": { "type": "string" },
+              },
+              { "name": "q", "in": "query", "schema": { "type": "string" } },
+              {
+                "name": "limit",
+                "in": "query",
+                "schema":
+                  {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 20,
+                  },
+              },
+              {
+                "name": "offset",
+                "in": "query",
+                "schema":
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100000,
+                    "default": 0,
+                  },
+              },
+            ],
+        },
+    }
+  "/v1/organizations/{organization_id}/billing/mock-credit":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "creditWallet",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/orders":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "purchaseNumber",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/leases/{resource_id}/release":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "releaseLease",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/orders/{resource_id}/refund":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "refundOrder",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/messages/simulate":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "simulateMessage",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/messages/{resource_id}":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "delete":
+        {
+          "tags": ["Workspace"],
+          "operationId": "deleteMessage",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+      "get":
+        {
+          "tags": ["Workspace"],
+          "operationId": "readMessage",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceMessage" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/api-keys":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "createAPIKey",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/api-keys/{resource_id}/revoke":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "revokeAPIKey",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/webhooks":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "createWebhook",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/webhooks/{resource_id}":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "patch":
+        {
+          "tags": ["Workspace"],
+          "operationId": "toggleWebhook",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/webhooks/{resource_id}/test":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+          {
+            "name": "resource_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "testWebhook",
+          "security": [{ "Session": [] }, { "Bearer": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            { "$ref": "#/components/schemas/WorkspaceResult" },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay.",
+          "parameters":
+            [
+              {
+                "name": "Idempotency-Key",
+                "in": "header",
+                "required": true,
+                "schema":
+                  { "type": "string", "minLength": 8, "maxLength": 128 },
+              },
+              { "$ref": "#/components/parameters/Origin" },
+              {
+                "name": "X-CSRF-Token",
+                "in": "header",
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/WorkspaceCommand" },
+                    },
+                },
+            },
+        },
+    }
+  "/v1/organizations/{organization_id}/events/stream":
+    {
+      "parameters":
+        [
+          {
+            "name": "organization_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+          },
+        ],
+      "get":
+        {
+          "tags": ["Workspace"],
+          "operationId": "workspaceEvents",
+          "security": [{ "Session": [] }],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Tenant-scoped SSE events. Reconnect using Last-Event-ID; events contain resource metadata only.",
+                  "content":
+                    { "text/event-stream": { "schema": { "type": "string" } } },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "parameters":
+            [
+              {
+                "name": "Last-Event-ID",
+                "in": "header",
+                "schema": { "type": "integer", "format": "int64" },
+              },
+            ],
+        },
+    }
+  "/v1/providers/mock/webhook":
+    {
+      "post":
+        {
+          "tags": ["Workspace"],
+          "operationId": "mockProviderIncoming",
+          "security": [],
+          "responses":
+            {
+              "200":
+                {
+                  "description": "Development workspace result.",
+                  "content":
+                    {
+                      "application/json":
+                        {
+                          "schema":
+                            {
+                              "$ref": "#/components/schemas/ProviderAcknowledgement",
+                            },
+                        },
+                    },
+                },
+              "400":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "401":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "403":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "404":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "409":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "429":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "500":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+              "504":
+                {
+                  "description": "Request rejected.",
+                  "content":
+                    {
+                      "application/json":
+                        { "schema": { "$ref": "#/components/schemas/Error" } },
+                    },
+                },
+            },
+          "description": "Development only. SHA256 HMAC of timestamp + dot + raw body; secret derived using HMAC(DATA_ENCRYPTION_KEY, numdock/mock-provider-webhook). Timestamp tolerance 5 minutes. Duplicate IDs deduplicated; inactive leases quarantined.",
+          "parameters":
+            [
+              {
+                "name": "X-NumDock-Timestamp",
+                "in": "header",
+                "required": true,
+                "schema": { "type": "string" },
+              },
+              {
+                "name": "X-NumDock-Signature",
+                "in": "header",
+                "required": true,
+                "schema": { "type": "string" },
+              },
+            ],
+          "requestBody":
+            {
+              "required": true,
+              "content":
+                {
+                  "application/json":
+                    {
+                      "schema":
+                        { "$ref": "#/components/schemas/ProviderIncoming" },
+                    },
+                },
+            },
+        },
+    }
   /healthz:
     get:
       tags: [Health]
@@ -58,19 +2068,19 @@ paths:
       summary: Liveness probe
       description: Returns 200 while the API process is running. It does not check PostgreSQL.
       responses:
-        '200':
+        "200":
           description: Process is alive.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Health'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/Health"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /readyz:
     get:
       tags: [Health]
@@ -78,21 +2088,21 @@ paths:
       summary: Readiness probe
       description: Pings PostgreSQL with a one-second timeout. Use this for load balancers and orchestrators.
       responses:
-        '200':
+        "200":
           description: Database is reachable.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Health'
-        '503':
-          $ref: '#/components/responses/ServiceUnavailable'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/Health"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/openapi.yaml:
     get:
       tags: [Documentation]
@@ -100,17 +2110,17 @@ paths:
       summary: Download the OpenAPI contract
       description: Returns the same OpenAPI document used by the Scalar reference at `/docs/api`.
       responses:
-        '200':
+        "200":
           description: OpenAPI 3.0 YAML document.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/yaml:
               schema:
                 type: string
-        '500':
-          $ref: '#/components/responses/InternalServerError'
+        "500":
+          $ref: "#/components/responses/InternalServerError"
   /v1/auth/csrf:
     get:
       tags: [Identity]
@@ -121,21 +2131,21 @@ paths:
         Reuse the existing cookie token when it is still valid. The token is
         also required in `X-CSRF-Token` for register, login, and logout.
       responses:
-        '200':
+        "200":
           description: CSRF token and cookie.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
             Set-Cookie:
-              $ref: '#/components/headers/SetCookie'
+              $ref: "#/components/headers/SetCookie"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CSRFToken'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/CSRFToken"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/auth/register:
     post:
       tags: [Identity]
@@ -148,42 +2158,42 @@ paths:
         commits. The browser must send an `Origin` header that exactly matches
         `APP_ORIGIN`.
       parameters:
-        - $ref: '#/components/parameters/Origin'
-        - $ref: '#/components/parameters/CSRF'
+        - $ref: "#/components/parameters/Origin"
+        - $ref: "#/components/parameters/CSRF"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Registration'
+              $ref: "#/components/schemas/Registration"
       responses:
-        '201':
+        "201":
           description: Account, organization, owner membership, and session created.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
             Set-Cookie:
-              $ref: '#/components/headers/SetCookie'
+              $ref: "#/components/headers/SetCookie"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Identity'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '409':
-          $ref: '#/components/responses/Conflict'
-        '413':
-          $ref: '#/components/responses/PayloadTooLarge'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/Identity"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/auth/login:
     post:
       tags: [Identity]
@@ -196,42 +2206,42 @@ paths:
         differences. The browser must send an `Origin` header that exactly
         matches `APP_ORIGIN`.
       parameters:
-        - $ref: '#/components/parameters/Origin'
-        - $ref: '#/components/parameters/CSRF'
+        - $ref: "#/components/parameters/Origin"
+        - $ref: "#/components/parameters/CSRF"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Credentials'
+              $ref: "#/components/schemas/Credentials"
       responses:
-        '200':
+        "200":
           description: Signed in; prior session cookie is rotated and revoked.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
             Set-Cookie:
-              $ref: '#/components/headers/SetCookie'
+              $ref: "#/components/headers/SetCookie"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Identity'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '413':
-          $ref: '#/components/responses/PayloadTooLarge'
-        '415':
-          $ref: '#/components/responses/UnsupportedMediaType'
-        '429':
-          $ref: '#/components/responses/TooManyRequests'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/Identity"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          $ref: "#/components/responses/PayloadTooLarge"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "429":
+          $ref: "#/components/responses/TooManyRequests"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/auth/logout:
     post:
       tags: [Identity]
@@ -244,24 +2254,24 @@ paths:
       security:
         - Session: []
       parameters:
-        - $ref: '#/components/parameters/Origin'
-        - $ref: '#/components/parameters/CSRF'
+        - $ref: "#/components/parameters/Origin"
+        - $ref: "#/components/parameters/CSRF"
       responses:
-        '204':
+        "204":
           description: Session revoked and cookie cleared.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
             Set-Cookie:
-              $ref: '#/components/headers/SetCookie'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+              $ref: "#/components/headers/SetCookie"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/me:
     get:
       tags: [Identity]
@@ -271,21 +2281,21 @@ paths:
       security:
         - Session: []
       responses:
-        '200':
+        "200":
           description: Current user and organizations.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Identity'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/Identity"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/organizations:
     get:
       tags: [Organizations]
@@ -295,26 +2305,26 @@ paths:
       security:
         - Session: []
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
       responses:
-        '200':
+        "200":
           description: Paginated organizations.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/OrganizationList'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/OrganizationList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
   /v1/catalog/numbers:
     get:
       tags: [Catalog]
@@ -332,47 +2342,105 @@ paths:
       security:
         - Session: []
       parameters:
-        - $ref: '#/components/parameters/Limit'
-        - $ref: '#/components/parameters/Offset'
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Offset"
         - name: country
           in: query
-          schema: {type: string, pattern: '^[A-Z]{2}$'}
+          schema: { type: string, pattern: "^[A-Z]{2}$" }
           description: Two-letter uppercase country code, for example US or CA.
         - name: number_type
           in: query
-          schema: {type: string, enum: [mobile, local, toll_free]}
+          schema: { type: string, enum: [mobile, local, toll_free] }
         - name: capability
           in: query
-          schema: {type: string, enum: [sms, voice, mms]}
+          schema: { type: string, enum: [sms, voice, mms] }
         - name: q
           in: query
-          schema: {type: string, maxLength: 100}
+          schema: { type: string, maxLength: 100 }
         - name: sort
           in: query
-          schema: {type: string, enum: [e164, monthly_fee_minor, inbound_sms_fee_micros], default: e164}
+          schema:
+            {
+              type: string,
+              enum: [e164, monthly_fee_minor, inbound_sms_fee_micros],
+              default: e164,
+            }
         - name: order
           in: query
-          schema: {type: string, enum: [asc, desc], default: asc}
+          schema: { type: string, enum: [asc, desc], default: asc }
       responses:
-        '200':
+        "200":
           description: Mock catalog in development, or disabled catalog elsewhere.
           headers:
             X-Request-ID:
-              $ref: '#/components/headers/XRequestID'
+              $ref: "#/components/headers/XRequestID"
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CatalogList'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalServerError'
-        '504':
-          $ref: '#/components/responses/GatewayTimeout'
+                $ref: "#/components/schemas/CatalogList"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
+  /v1/organizations/{organization_id}/overview:
+    get:
+      tags: [Overview]
+      operationId: getOrganizationOverview
+      summary: Read an organization overview
+      description: |
+        Requires a valid session and membership in the requested organization.
+        Missing organizations and organizations outside the user's memberships
+        both return 404. Development samples are isolated from real transactions.
+        Only APP_ENV=development reads development_overview_daily. Production
+        returns mode=disabled with no samples, even against a seeded database.
+        mode=empty means no samples in the selected UTC window. mode=mock means
+        an explicitly synthetic dashboard, not provider health or a real wallet.
+        Counts and spend are summed over the selected UTC days; active_numbers
+        is the latest recorded snapshot, never a sum. Missing days are zero-filled.
+        Telemetry flags describe SDK/export configuration, not collector health.
+        Unknown/repeated query parameters are rejected.
+      security:
+        - Session: []
+      parameters:
+        - name: organization_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: days
+          in: query
+          schema: { type: integer, enum: [7, 30], default: 30 }
+      responses:
+        "200":
+          description: Authorized overview and telemetry configuration flags.
+          headers:
+            X-Request-ID:
+              $ref: "#/components/headers/XRequestID"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Overview"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+        "504":
+          $ref: "#/components/responses/GatewayTimeout"
 components:
   securitySchemes:
+    Bearer:
+      {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Development nd_mock_ key, scoped and bound to one organization; expires within 90 days.",
+      }
     Session:
       type: apiKey
       in: cookie
@@ -399,7 +2467,7 @@ components:
       description: Token returned by `GET /v1/auth/csrf`; must match the CSRF cookie.
       schema:
         type: string
-        pattern: '^[A-Za-z0-9_-]{43}$'
+        pattern: "^[A-Za-z0-9_-]{43}$"
     Limit:
       name: limit
       in: query
@@ -426,123 +2494,544 @@ components:
       description: Seconds to wait before retrying the request.
       schema:
         type: string
-        example: '60'
+        example: "60"
     SetCookie:
       description: May contain one or more Set-Cookie headers (session or CSRF cookies).
       schema:
         type: string
   responses:
+    NotFound:
+      description: Resource does not exist or is outside the user's memberships.
+      headers:
+        X-Request-ID:
+          $ref: "#/components/headers/XRequestID"
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
     BadRequest:
       description: Invalid JSON, unknown fields, invalid email/password/name, or invalid pagination.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Unauthorized:
       description: Missing, expired, or revoked session.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Forbidden:
       description: Origin or CSRF validation failed.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     Conflict:
       description: Email is already registered. The message is intentionally generic to reduce account enumeration.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     PayloadTooLarge:
       description: Request body exceeds 8192 bytes.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     UnsupportedMediaType:
       description: Content-Type is not application/json.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     TooManyRequests:
       description: Persistent IP or email authentication rate limit exceeded.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
         Retry-After:
-          $ref: '#/components/headers/RetryAfter'
+          $ref: "#/components/headers/RetryAfter"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     InternalServerError:
       description: Unexpected server or database failure. Share the request ID, not credentials or message content.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     GatewayTimeout:
       description: The request exceeded the 15-second server timeout.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
     ServiceUnavailable:
       description: Database is unavailable; the readiness probe cannot serve traffic.
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/XRequestID'
+          $ref: "#/components/headers/XRequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/Error'
+            $ref: "#/components/schemas/Error"
   schemas:
+    PublicFeatureMode:
+      type: string
+      enum: [active, mock, disabled, unavailable]
+    PublicStatus:
+      type: object
+      additionalProperties: false
+      required: [checked_at, api, database, features, live_provider_connected, payments_connected]
+      properties:
+        checked_at:
+          type: string
+          format: date-time
+        api:
+          type: boolean
+        database:
+          type: boolean
+        live_provider_connected:
+          type: boolean
+        payments_connected:
+          type: boolean
+        features:
+          type: object
+          additionalProperties: false
+          required: [identity, catalog, numbers, messaging, billing, developer]
+          properties:
+            identity:
+              $ref: "#/components/schemas/PublicFeatureMode"
+            catalog:
+              $ref: "#/components/schemas/PublicFeatureMode"
+            numbers:
+              $ref: "#/components/schemas/PublicFeatureMode"
+            messaging:
+              $ref: "#/components/schemas/PublicFeatureMode"
+            billing:
+              $ref: "#/components/schemas/PublicFeatureMode"
+            developer:
+              $ref: "#/components/schemas/PublicFeatureMode"
+    Wallet:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["currency", "available_minor", "reserved_minor"],
+        "properties":
+          {
+            "currency": { "type": "string", "enum": ["USD"] },
+            "available_minor": { "type": "integer", "format": "int64" },
+            "reserved_minor": { "type": "integer", "format": "int64" },
+          },
+      }
+    WorkspaceCounts:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["numbers", "unread_messages", "completed_orders"],
+        "properties":
+          {
+            "numbers": { "type": "integer", "format": "int64" },
+            "unread_messages": { "type": "integer", "format": "int64" },
+            "completed_orders": { "type": "integer", "format": "int64" },
+          },
+      }
+    LeasedNumber:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "e164",
+            "status",
+            "country_code",
+            "number_type",
+            "capabilities",
+            "monthly_fee_minor",
+            "started_at",
+            "expires_at",
+            "order_id",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "e164": { "type": "string" },
+            "status":
+              { "type": "string", "enum": ["active", "released", "expired"] },
+            "country_code": { "type": "string" },
+            "number_type": { "type": "string" },
+            "capabilities": { "type": "array", "items": { "type": "string" } },
+            "monthly_fee_minor": { "type": "integer", "format": "int64" },
+            "started_at": { "type": "string", "format": "date-time" },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "order_id": { "type": "string" },
+          },
+      }
+    WorkspaceOrder:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "e164",
+            "status",
+            "purpose",
+            "amount_minor",
+            "failure_code",
+            "created_at",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "e164": { "type": "string" },
+            "status":
+              {
+                "type": "string",
+                "enum": ["completed", "failed", "refunded", "processing"],
+              },
+            "purpose": { "type": "string" },
+            "amount_minor": { "type": "integer", "format": "int64" },
+            "failure_code": { "type": "string" },
+            "created_at": { "type": "string", "format": "date-time" },
+          },
+      }
+    LedgerEntry:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "reference_id",
+            "kind",
+            "available_delta",
+            "reserved_delta",
+            "available_after",
+            "reserved_after",
+            "created_at",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "reference_id": { "type": "string" },
+            "kind":
+              {
+                "type": "string",
+                "enum":
+                  ["mock_credit", "reserve", "settle", "release", "refund"],
+              },
+            "available_delta": { "type": "integer", "format": "int64" },
+            "reserved_delta": { "type": "integer", "format": "int64" },
+            "available_after": { "type": "integer", "format": "int64" },
+            "reserved_after": { "type": "integer", "format": "int64" },
+            "created_at": { "type": "string", "format": "date-time" },
+          },
+      }
+    WorkspaceMessage:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          ["id", "lease_id", "e164", "received_at", "expires_at", "read"],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "lease_id": { "type": "string" },
+            "e164": { "type": "string" },
+            "received_at": { "type": "string", "format": "date-time" },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "read": { "type": "boolean" },
+            "body": { "type": "string" },
+          },
+      }
+    WorkspaceAPIKey:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "name",
+            "prefix",
+            "scopes",
+            "created_at",
+            "expires_at",
+            "revoked",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "name": { "type": "string" },
+            "prefix": { "type": "string" },
+            "scopes":
+              {
+                "type": "array",
+                "items":
+                  {
+                    "type": "string",
+                    "enum":
+                      [
+                        "numbers:read",
+                        "numbers:write",
+                        "messages:read",
+                        "billing:read",
+                      ],
+                  },
+              },
+            "created_at": { "type": "string", "format": "date-time" },
+            "expires_at": { "type": "string", "format": "date-time" },
+            "revoked": { "type": "boolean" },
+          },
+      }
+    WorkspaceWebhook:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url", "enabled", "created_at"],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "url": { "type": "string" },
+            "enabled": { "type": "boolean" },
+            "created_at": { "type": "string", "format": "date-time" },
+          },
+      }
+    WebhookDelivery:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "id",
+            "endpoint_id",
+            "event_id",
+            "status",
+            "attempts",
+            "response_status",
+            "created_at",
+          ],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "endpoint_id": { "type": "string" },
+            "event_id": { "type": "integer", "format": "int64" },
+            "status":
+              {
+                "type": "string",
+                "enum": ["pending", "succeeded", "failed", "disabled"],
+              },
+            "attempts": { "type": "integer", "format": "int64" },
+            "response_status": { "type": "integer", "format": "int64" },
+            "created_at": { "type": "string", "format": "date-time" },
+          },
+      }
+    WorkspaceEvent:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "type", "resource_id"],
+        "properties":
+          {
+            "id": { "type": "integer", "format": "int64" },
+            "type": { "type": "string" },
+            "resource_id": { "type": "string" },
+          },
+      }
+    WorkspaceCommand:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [],
+        "properties":
+          {
+            "amount_minor": { "type": "integer", "format": "int64" },
+            "catalog_item_id": { "type": "string" },
+            "purpose":
+              {
+                "type": "string",
+                "enum":
+                  [
+                    "customer_support",
+                    "product_notifications",
+                    "service_testing",
+                  ],
+              },
+            "confirmed_terms": { "type": "boolean" },
+            "simulate_failure": { "type": "boolean" },
+            "lease_id": { "type": "string" },
+            "body": { "type": "string" },
+            "name": { "type": "string" },
+            "scopes": { "type": "array", "items": { "type": "string" } },
+            "expires_days": { "type": "integer", "format": "int64" },
+            "url": { "type": "string" },
+            "enabled": { "type": "boolean" },
+          },
+      }
+    ProviderIncoming:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "lease_id", "body", "occurred_at"],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "lease_id": { "type": "string" },
+            "body": { "type": "string" },
+            "occurred_at": { "type": "string", "format": "date-time" },
+          },
+      }
+    ProviderAcknowledgement:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": { "status": { "type": "string" } },
+      }
+    WorkspaceSnapshot:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required":
+          [
+            "mode",
+            "role",
+            "wallet",
+            "counts",
+            "numbers",
+            "orders",
+            "ledger",
+            "messages",
+            "api_keys",
+            "webhooks",
+            "deliveries",
+            "total",
+            "limit",
+            "offset",
+          ],
+        "properties":
+          {
+            "mode": { "type": "string", "enum": ["mock", "disabled"] },
+            "role": { "type": "string", "enum": ["owner", "admin", "member"] },
+            "wallet": { "$ref": "#/components/schemas/Wallet" },
+            "counts": { "$ref": "#/components/schemas/WorkspaceCounts" },
+            "numbers":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/LeasedNumber" },
+              },
+            "orders":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkspaceOrder" },
+              },
+            "ledger":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/LedgerEntry" },
+              },
+            "messages":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkspaceMessage" },
+              },
+            "api_keys":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkspaceAPIKey" },
+              },
+            "webhooks":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WorkspaceWebhook" },
+              },
+            "deliveries":
+              {
+                "type": "array",
+                "items": { "$ref": "#/components/schemas/WebhookDelivery" },
+              },
+            "total": { "type": "integer", "format": "int64" },
+            "limit": { "type": "integer", "format": "int64" },
+            "offset": { "type": "integer", "format": "int64" },
+          },
+      }
+    WorkspaceResult:
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status"],
+        "properties":
+          {
+            "id": { "type": "string" },
+            "status": { "type": "string" },
+            "secret": { "type": "string" },
+            "order": { "$ref": "#/components/schemas/WorkspaceOrder" },
+            "number": { "$ref": "#/components/schemas/LeasedNumber" },
+            "wallet": { "$ref": "#/components/schemas/Wallet" },
+            "key": { "$ref": "#/components/schemas/WorkspaceAPIKey" },
+            "webhook": { "$ref": "#/components/schemas/WorkspaceWebhook" },
+          },
+      }
     CatalogItem:
       type: object
       additionalProperties: false
-      required: [id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status]
+      required:
+        [
+          id,
+          e164,
+          country_code,
+          country_name,
+          region,
+          number_type,
+          capabilities,
+          provider,
+          source,
+          currency,
+          monthly_fee_minor,
+          inbound_sms_fee_micros,
+          status,
+        ]
       properties:
-        id: {type: string, format: uuid}
-        e164: {type: string, pattern: '^\+[1-9][0-9]{6,14}$'}
-        country_code: {type: string, pattern: '^[A-Z]{2}$'}
-        country_name: {type: string}
-        region: {type: string}
-        number_type: {type: string, enum: [mobile, local, toll_free]}
+        id: { type: string, format: uuid }
+        e164: { type: string, pattern: '^\+[1-9][0-9]{6,14}$' }
+        country_code: { type: string, pattern: "^[A-Z]{2}$" }
+        country_name: { type: string }
+        region: { type: string }
+        number_type: { type: string, enum: [mobile, local, toll_free] }
         capabilities:
           type: array
           minItems: 1
-          items: {type: string, enum: [sms, voice, mms]}
-        provider: {type: string, enum: [NumDock Mock]}
-        source: {type: string, enum: [mock]}
-        currency: {type: string, enum: [USD]}
+          items: { type: string, enum: [sms, voice, mms] }
+        provider: { type: string, enum: [NumDock Mock] }
+        source: { type: string, enum: [mock] }
+        currency: { type: string, enum: [USD] }
         monthly_fee_minor:
           type: integer
           format: int32
@@ -553,7 +3042,7 @@ components:
           format: int32
           minimum: 0
           description: Demonstration price per inbound SMS in millionths of one USD. Not a charge.
-        status: {type: string, enum: [available]}
+        status: { type: string, enum: [available] }
     CatalogList:
       type: object
       additionalProperties: false
@@ -561,11 +3050,87 @@ components:
       properties:
         items:
           type: array
-          items: {$ref: '#/components/schemas/CatalogItem'}
-        total: {type: integer, format: int64, minimum: 0}
-        limit: {type: integer, minimum: 1, maximum: 100}
-        offset: {type: integer, minimum: 0, maximum: 2147483647}
-        mode: {type: string, enum: [mock, disabled]}
+          items: { $ref: "#/components/schemas/CatalogItem" }
+        total: { type: integer, format: int64, minimum: 0 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        offset: { type: integer, minimum: 0, maximum: 2147483647 }
+        mode: { type: string, enum: [mock, disabled] }
+    OverviewTotals:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          active_numbers,
+          messages_received,
+          messages_failed,
+          orders_completed,
+          spend_minor,
+        ]
+      properties:
+        active_numbers: { type: integer, format: int64, minimum: 0 }
+        messages_received: { type: integer, format: int64, minimum: 0 }
+        messages_failed: { type: integer, format: int64, minimum: 0 }
+        orders_completed: { type: integer, format: int64, minimum: 0 }
+        spend_minor: { type: integer, format: int64, minimum: 0 }
+    OverviewDay:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          date,
+          active_numbers,
+          messages_received,
+          messages_failed,
+          orders_completed,
+          spend_minor,
+        ]
+      properties:
+        date: { type: string, format: date }
+        active_numbers: { type: integer, format: int64, minimum: 0 }
+        messages_received: { type: integer, format: int64, minimum: 0 }
+        messages_failed: { type: integer, format: int64, minimum: 0 }
+        orders_completed: { type: integer, format: int64, minimum: 0 }
+        spend_minor: { type: integer, format: int64, minimum: 0 }
+    OverviewTelemetry:
+      type: object
+      additionalProperties: false
+      required: [instrumented, exporter_configured]
+      properties:
+        instrumented: { type: boolean }
+        exporter_configured: { type: boolean }
+    Overview:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          organization_id,
+          mode,
+          currency,
+          days,
+          range_start,
+          range_end,
+          seeded_at,
+          totals,
+          series,
+          telemetry,
+        ]
+      properties:
+        organization_id: { type: string, format: uuid }
+        mode: { type: string, enum: [mock, empty, disabled] }
+        currency: { type: string, enum: [USD] }
+        days: { type: integer, enum: [7, 30] }
+        range_start: { type: string, format: date }
+        range_end: { type: string, format: date }
+        seeded_at: { type: string, format: date-time, nullable: true }
+        totals:
+          $ref: "#/components/schemas/OverviewTotals"
+        series:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/OverviewDay"
+        telemetry:
+          $ref: "#/components/schemas/OverviewTelemetry"
     Health:
       type: object
       required: [status]
@@ -578,6 +3143,18 @@ components:
       type: string
       description: Stable machine-readable error code.
       enum:
+        - resource_limit
+        - invalid_webhook_url
+        - webhook_disabled
+        - feature_disabled
+        - forbidden
+        - idempotency_conflict
+        - inventory_unavailable
+        - insufficient_balance
+        - lease_inactive
+        - refund_unavailable
+        - release_required
+        - sms_unavailable
         - validation_failed
         - invalid_request
         - unsupported_media_type
@@ -599,7 +3176,7 @@ components:
       additionalProperties: false
       properties:
         code:
-          $ref: '#/components/schemas/ErrorCode'
+          $ref: "#/components/schemas/ErrorCode"
         message:
           type: string
           description: User-safe message. Do not parse this field for control flow; use code.
@@ -615,7 +3192,7 @@ components:
       properties:
         token:
           type: string
-          pattern: '^[A-Za-z0-9_-]{43}$'
+          pattern: "^[A-Za-z0-9_-]{43}$"
           description: Send this value in the X-CSRF-Token header; it must match the CSRF cookie.
     Credentials:
       type: object
@@ -682,7 +3259,7 @@ components:
         id: 4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21
         email: alex@example.com
         name: Alex
-        created_at: '2026-10-20T12:00:00Z'
+        created_at: "2026-10-20T12:00:00Z"
     Organization:
       type: object
       required: [id, name, role, created_at]
@@ -704,29 +3281,29 @@ components:
         id: 6c72da79-7c19-49a9-95c9-18d979051b3f
         name: Alpha
         role: owner
-        created_at: '2026-10-20T12:00:00Z'
+        created_at: "2026-10-20T12:00:00Z"
     Identity:
       type: object
       required: [user, organizations]
       additionalProperties: false
       properties:
         user:
-          $ref: '#/components/schemas/User'
+          $ref: "#/components/schemas/User"
         organizations:
           type: array
           items:
-            $ref: '#/components/schemas/Organization'
+            $ref: "#/components/schemas/Organization"
       example:
         user:
           id: 4d9e54b0-7e4b-4f97-9a2f-5d9e0c5b4a21
           email: alex@example.com
           name: Alex
-          created_at: '2026-10-20T12:00:00Z'
+          created_at: "2026-10-20T12:00:00Z"
         organizations:
           - id: 6c72da79-7c19-49a9-95c9-18d979051b3f
             name: Alpha
             role: owner
-            created_at: '2026-10-20T12:00:00Z'
+            created_at: "2026-10-20T12:00:00Z"
     OrganizationList:
       type: object
       required: [items, limit, offset]
@@ -735,7 +3312,7 @@ components:
         items:
           type: array
           items:
-            $ref: '#/components/schemas/Organization'
+            $ref: "#/components/schemas/Organization"
         limit:
           type: integer
           minimum: 1
@@ -748,6 +3325,6 @@ components:
           - id: 6c72da79-7c19-49a9-95c9-18d979051b3f
             name: Alpha
             role: owner
-            created_at: '2026-10-20T12:00:00Z'
+            created_at: "2026-10-20T12:00:00Z"
         limit: 20
         offset: 0

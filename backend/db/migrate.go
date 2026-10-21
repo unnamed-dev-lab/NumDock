@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"embed"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivermigrate"
 )
 
 //go:embed migrations/*.sql
@@ -22,6 +25,22 @@ func Migrate(ctx context.Context, url string) error {
 	if err != nil {
 		return err
 	}
-	_, err = provider.Up(ctx)
+	if _, err = provider.Up(ctx); err != nil {
+		return err
+	}
+	pool, err := pgxpool.New(ctx, url)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	var schema string
+	if err = pool.QueryRow(ctx, "SELECT current_schema()").Scan(&schema); err != nil {
+		return err
+	}
+	migrator, err := rivermigrate.New(riverpgxv5.New(pool), &rivermigrate.Config{Schema: schema})
+	if err != nil {
+		return err
+	}
+	_, err = migrator.Migrate(ctx, rivermigrate.DirectionUp, nil)
 	return err
 }

@@ -1,0 +1,27 @@
+# Mock development examples. Create a NEW key in API & Webhooks and paste its
+# one-time token below. Select numbers:read, messages:read and billing:read.
+# Seeded key rows illustrate statuses; their random plaintext tokens are discarded.
+@baseUrl = http://localhost:3001
+@organizationId = d0000000-0000-4000-8000-000000000001
+@apiKey = PASTE_YOUR_NEW_DEVELOPMENT_KEY
+
+### Leased Mock numbers
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/workspace?view=numbers&limit=20&offset=0
+Authorization: Bearer {{apiKey}}
+
+### Message metadata (body requires the detail request below)
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/workspace?view=messages&limit=20&offset=0
+Authorization: Bearer {{apiKey}}
+
+### Wallet and ledger
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/workspace?view=ledger&limit=20&offset=0
+Authorization: Bearer {{apiKey}}
+
+### Completed Mock orders
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/workspace?view=orders&status=completed&limit=20&offset=0
+Authorization: Bearer {{apiKey}}
+
+### Decrypt one message; use an id from the metadata response
+@messageId = PASTE_MESSAGE_ID
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/messages/{{messageId}}
+Authorization: Bearer {{apiKey}}

@@ -11,7 +11,7 @@ import (
 
 const countCatalogItems = `-- name: CountCatalogItems :one
 SELECT count(*) FROM catalog_items
-WHERE ($1::text = '' OR country_code = $1)
+WHERE status='available' AND ($1::text = '' OR country_code = $1)
   AND ($2::text = '' OR number_type = $2)
   AND ($3::text = '' OR $3 = ANY(capabilities))
   AND ($4::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower($4)) > 0)
@@ -38,7 +38,7 @@ func (q *Queries) CountCatalogItems(ctx context.Context, arg CountCatalogItemsPa
 
 const listCatalogItems = `-- name: ListCatalogItems :many
 SELECT id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status, created_at FROM catalog_items
-WHERE ($1::text = '' OR country_code = $1)
+WHERE status='available' AND ($1::text = '' OR country_code = $1)
   AND ($2::text = '' OR number_type = $2)
   AND ($3::text = '' OR $3 = ANY(capabilities))
   AND ($4::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower($4)) > 0)

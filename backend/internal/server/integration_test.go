@@ -74,6 +74,9 @@ func setupWithConfig(t *testing.T, cfg config.Config) fixture {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
+	if cfg.Environment == "development" && len(cfg.DataEncryptionKey) == 0 {
+		cfg.DataEncryptionKey = randomBytes(t, 32)
+	}
 	router, err := server.New(pool, cfg, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	if err != nil {
 		t.Fatal(err)
@@ -135,6 +138,32 @@ func assertContract(t *testing.T, method, path string, status int, data []byte) 
 		t.Fatal(err)
 	}
 	item := document.Paths.Find(path)
+	if item == nil {
+		// Paths.Find compares template shapes, not concrete URLs. Resolve concrete
+		// resource IDs so response-contract checks cover parameterized endpoints too.
+		segments := strings.Split(path, "/")
+		for template, candidate := range document.Paths.Map() {
+			if candidate.GetOperation(method) == nil {
+				continue
+			}
+			parts := strings.Split(template, "/")
+			if len(parts) != len(segments) {
+				continue
+			}
+			match := true
+			for i, part := range parts {
+				parameter := strings.HasPrefix(part, "{") && strings.HasSuffix(part, "}") && segments[i] != ""
+				if part != segments[i] && !parameter {
+					match = false
+					break
+				}
+			}
+			if match {
+				item = candidate
+				break
+			}
+		}
+	}
 	if item == nil {
 		t.Fatalf("endpoint missing from OpenAPI: %s", path)
 	}

@@ -1,19 +1,25 @@
 package config
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 )
 
 type Config struct {
-	Environment    string
-	DatabaseURL    string
-	Address        string
-	AppOrigin      string
-	SecureCookies  bool
-	TrustedProxies []string
+	DataEncryptionKey    []byte
+	TelemetryEnabled     bool
+	TelemetryEndpoint    string
+	TelemetryServiceName string
+	Environment          string
+	DatabaseURL          string
+	Address              string
+	AppOrigin            string
+	SecureCookies        bool
+	TrustedProxies       []string
 }
 
 func Load() (Config, error) {
@@ -30,6 +36,38 @@ func Load() (Config, error) {
 	}
 	if c.Environment != "production" && c.Environment != "development" && c.Environment != "test" {
 		return c, errors.New("APP_ENV must be production, development, or test")
+	}
+	if raw := os.Getenv("DATA_ENCRYPTION_KEY"); raw != "" {
+		var err error
+		c.DataEncryptionKey, err = base64.StdEncoding.DecodeString(raw)
+		if err != nil || len(c.DataEncryptionKey) != 32 {
+			return c, errors.New("DATA_ENCRYPTION_KEY must be base64-encoded 32 bytes")
+		}
+	}
+	if c.Environment == "development" && len(c.DataEncryptionKey) != 32 {
+		return c, errors.New("development requires DATA_ENCRYPTION_KEY; use scripts/backend.ps1 to initialize a local key")
+	}
+	c.TelemetryEnabled = c.Environment == "development"
+	if raw := os.Getenv("OTEL_ENABLED"); raw != "" {
+		enabled, err := strconv.ParseBool(raw)
+		if err != nil {
+			return c, errors.New("OTEL_ENABLED must be true or false")
+		}
+		c.TelemetryEnabled = enabled
+	}
+	c.TelemetryEndpoint = os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	c.TelemetryServiceName = os.Getenv("OTEL_SERVICE_NAME")
+	if c.TelemetryServiceName == "" {
+		c.TelemetryServiceName = "numdock-api"
+	}
+	if c.TelemetryEnabled && c.TelemetryEndpoint != "" {
+		endpoint, err := url.Parse(c.TelemetryEndpoint)
+		if err != nil || endpoint.Host == "" || (endpoint.Scheme != "http" && endpoint.Scheme != "https") || endpoint.User != nil || endpoint.RawQuery != "" || endpoint.Fragment != "" {
+			return c, errors.New("OTEL_EXPORTER_OTLP_ENDPOINT must be an http(s) URL without credentials, query or fragment")
+		}
+		if protocol := os.Getenv("OTEL_EXPORTER_OTLP_PROTOCOL"); protocol != "" && protocol != "http/protobuf" {
+			return c, errors.New("only OTLP http/protobuf is supported")
+		}
 	}
 	if c.Address == "" {
 		c.Address = "127.0.0.1:8080"

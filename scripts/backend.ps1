@@ -12,7 +12,7 @@ if (-not $EnvFile) {
 }
 if ($EnvFile) {
     foreach ($line in Get-Content -LiteralPath $EnvFile) {
-        if ($line -match '^\s*(APP_ENV|DEV_SEED_PASSWORD|DATABASE_URL|TEST_DATABASE_URL|HTTP_ADDR|APP_ORIGIN|COOKIE_SECURE|TRUSTED_PROXIES)=(.*)$') {
+        if ($line -match '^\s*(DATA_ENCRYPTION_KEY|OTEL_ENABLED|OTEL_SERVICE_NAME|OTEL_EXPORTER_OTLP_ENDPOINT|OTEL_EXPORTER_OTLP_PROTOCOL|OTEL_EXPORTER_OTLP_HEADERS|APP_ENV|DEV_SEED_PASSWORD|DATABASE_URL|TEST_DATABASE_URL|HTTP_ADDR|APP_ORIGIN|COOKIE_SECURE|TRUSTED_PROXIES)=(.*)$') {
             [Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim(), 'Process')
         }
     }
@@ -22,6 +22,16 @@ $env:GOCACHE = Join-Path $projectRoot '.cache/go-build'
 if (-not $env:COOKIE_SECURE -and $EnvFile -eq (Join-Path $projectRoot '.local/dev.env')) { $env:COOKIE_SECURE = 'false' }
 if (-not $env:TEST_DATABASE_URL -and $env:DATABASE_URL -and $EnvFile -eq (Join-Path $projectRoot '.local/dev.env')) { $env:TEST_DATABASE_URL = $env:DATABASE_URL }
 if (-not $env:APP_ENV -and $EnvFile -eq (Join-Path $projectRoot '.local/dev.env')) { $env:APP_ENV = 'development' }
+if ($env:APP_ENV -eq 'development' -and -not $env:DATA_ENCRYPTION_KEY) {
+    $encryptionKeyFile = Join-Path $projectRoot '.local/data-encryption-key'
+    if (-not (Test-Path -LiteralPath $encryptionKeyFile)) {
+        New-Item -ItemType Directory -Force -Path (Join-Path $projectRoot '.local') | Out-Null
+        $keyBytes = New-Object byte[] 32
+        [System.Security.Cryptography.RandomNumberGenerator]::Fill($keyBytes)
+        Set-Content -LiteralPath $encryptionKeyFile -Value ([Convert]::ToBase64String($keyBytes)) -NoNewline
+    }
+    $env:DATA_ENCRYPTION_KEY = (Get-Content -LiteralPath $encryptionKeyFile -Raw).Trim()
+}
 if ($Task -eq 'seed') {
     if ($env:APP_ENV -ne 'development') { throw 'seed requires APP_ENV=development; no database changes made.' }
     $seedPasswordFile = Join-Path $projectRoot '.local/dev-seed-password'

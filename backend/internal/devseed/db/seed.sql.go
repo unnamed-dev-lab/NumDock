@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const seedCatalogItem = `-- name: SeedCatalogItem :exec
@@ -78,6 +80,35 @@ type SeedOrganizationParams struct {
 
 func (q *Queries) SeedOrganization(ctx context.Context, arg SeedOrganizationParams) error {
 	_, err := q.db.Exec(ctx, seedOrganization, arg.ID, arg.Name)
+	return err
+}
+
+const seedOverviewDay = `-- name: SeedOverviewDay :exec
+INSERT INTO development_overview_daily (organization_id, day, active_numbers, messages_received, messages_failed, orders_completed, spend_minor)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (organization_id, day) DO NOTHING
+`
+
+type SeedOverviewDayParams struct {
+	OrganizationID   string
+	Day              pgtype.Date
+	ActiveNumbers    int32
+	MessagesReceived int32
+	MessagesFailed   int32
+	OrdersCompleted  int32
+	SpendMinor       int32
+}
+
+func (q *Queries) SeedOverviewDay(ctx context.Context, arg SeedOverviewDayParams) error {
+	_, err := q.db.Exec(ctx, seedOverviewDay,
+		arg.OrganizationID,
+		arg.Day,
+		arg.ActiveNumbers,
+		arg.MessagesReceived,
+		arg.MessagesFailed,
+		arg.OrdersCompleted,
+		arg.SpendMinor,
+	)
 	return err
 }
 

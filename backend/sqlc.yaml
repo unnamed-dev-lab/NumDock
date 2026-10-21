@@ -27,3 +27,21 @@ sql:
         out: internal/devseed/db
         sql_package: pgx/v5
         emit_empty_slices: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: internal/overview/postgres/queries
+    gen:
+      go:
+        package: db
+        out: internal/overview/postgres/db
+        sql_package: pgx/v5
+        emit_empty_slices: true
+  - engine: postgresql
+    schema: db/migrations
+    queries: internal/operations/postgres/queries
+    gen:
+      go:
+        package: db
+        out: internal/operations/postgres/db
+        sql_package: pgx/v5
+        emit_empty_slices: true

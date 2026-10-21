@@ -5,6 +5,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5/pgtype"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	seeddb "numdock/backend/internal/devseed/db"
@@ -78,6 +80,26 @@ func Run(ctx context.Context, pool *pgxpool.Pool, environment, password string) 
 		err := q.SeedCatalogItem(ctx, seeddb.SeedCatalogItemParams{ID: fmt.Sprintf("d2000000-0000-4000-8000-%012d", i+1), E164: fmt.Sprintf("%s%02d", prefix, i), CountryCode: country, CountryName: name, Region: region, NumberType: kind, Capabilities: capabilities, MonthlyFeeMinor: int32(200 + i*25), InboundSmsFeeMicros: int32(7500 + i*100)})
 		if err != nil {
 			return errors.New("seed catalog conflicts with existing data; no changes committed")
+		}
+	}
+	// Rolling 30-day, organization-isolated dashboard samples, never real transactions.
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	for _, org := range []struct {
+		id    string
+		scale int32
+	}{{WorkspaceID, 4}, {IsolatedWorkspaceID, 1}} {
+		for offset := 29; offset >= 0; offset-- {
+			date := today.AddDate(0, 0, -offset)
+			dayIndex := int32(date.Unix() / 86400)
+			received := (120 + (dayIndex%17)*13 + (dayIndex%5)*21) * org.scale
+			failed := (dayIndex%7 + 1) * org.scale
+			if dayIndex%11 == 0 {
+				failed += 22 * org.scale
+			}
+			err := q.SeedOverviewDay(ctx, seeddb.SeedOverviewDayParams{OrganizationID: org.id, Day: pgtype.Date{Time: date, Valid: true}, ActiveNumbers: (4 + dayIndex%3) * org.scale, MessagesReceived: received, MessagesFailed: failed, OrdersCompleted: (1 + dayIndex%4) * org.scale, SpendMinor: received*2 + 150*org.scale})
+			if err != nil {
+				return errors.New("seed overview failed; no changes committed")
+			}
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {

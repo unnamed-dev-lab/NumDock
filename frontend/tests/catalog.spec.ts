@@ -19,10 +19,32 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     .getByRole("button", { name: "Create workspace", exact: true })
     .click();
   await expect(page).toHaveURL(/\/app$/);
+  const baseline = await (
+    await page.request.get("/v1/catalog/numbers?limit=100")
+  ).json();
+  const total = baseline.total as number;
+  const lastOffset = Math.max(0, Math.ceil(total / 10) - 1) * 10;
+  const canadian = await (
+    await page.request.get("/v1/catalog/numbers?country=CA")
+  ).json();
+  const ascending = await (
+    await page.request.get(
+      "/v1/catalog/numbers?sort=monthly_fee_minor&order=asc",
+    )
+  ).json();
+  const descending = await (
+    await page.request.get(
+      "/v1/catalog/numbers?sort=monthly_fee_minor&order=desc",
+    )
+  ).json();
+  const money = (value: number) =>
+    new Intl.NumberFormat("en", { style: "currency", currency: "USD" }).format(
+      value / 100,
+    );
   await page.goto("/app/numbers?tab=catalog");
   const catalog = page.getByRole("region", { name: "Catalog", exact: true });
   await expect(
-    catalog.getByText("Development mock data from PostgreSQL.", {
+    catalog.getByText("Development catalog from PostgreSQL.", {
       exact: false,
     }),
   ).toBeVisible();
@@ -30,7 +52,7 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     catalog.getByRole("cell", { name: "NumDock Mock", exact: true }),
   ).toHaveCount(10);
   await expect(
-    catalog.getByText("24 total rows", { exact: false }),
+    catalog.getByText(`${total} total rows`, { exact: false }),
   ).toBeVisible();
   await expect(
     catalog.getByRole("button", { name: "Buy line", exact: true }),
@@ -40,10 +62,10 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     fullPage: true,
   });
   await page.goto("/app/numbers?tab=catalog&offset=999");
-  await expect(page).toHaveURL(/offset=20/);
+  await expect(page).toHaveURL(new RegExp(`offset=${lastOffset}`));
   await expect(
     catalog.getByRole("cell", { name: "NumDock Mock", exact: true }),
-  ).toHaveCount(4);
+  ).toHaveCount(total - lastOffset);
   await catalog
     .getByRole("button", { name: "Go to first page", exact: true })
     .click();
@@ -65,7 +87,7 @@ test("database catalog filters, pagination, states, themes and URL persistence",
   ).toBeFocused();
   await expect(page).not.toHaveURL(/offset=/);
   await expect(
-    catalog.getByText("12 total rows", { exact: false }),
+    catalog.getByText(`${canadian.total} total rows`, { exact: false }),
   ).toBeVisible();
   await catalog.getByRole("searchbox").fill("no-matching-demo-number");
   await expect(
@@ -77,17 +99,22 @@ test("database catalog filters, pagination, states, themes and URL persistence",
   );
   await catalog.getByRole("button", { name: "Reset", exact: true }).click();
   await expect(
-    catalog.getByText("24 total rows", { exact: false }),
+    catalog.getByText(`${total} total rows`, { exact: false }),
   ).toBeVisible();
   await catalog
     .getByRole("button", { name: "Monthly fee", exact: true })
     .click();
   await expect(page).toHaveURL(/sort=monthly_fee_minor/);
-  await expect(catalog.locator("tbody tr").first()).toContainText("$2.00");
+ await expect(catalog.getByRole("columnheader",{name:"Monthly fee"})).toHaveAttribute("aria-sort","ascending");
+  await expect(catalog.locator("tbody tr").first()).toContainText(
+    money(ascending.items[0].monthly_fee_minor),
+  );
   await catalog
     .getByRole("button", { name: "Monthly fee", exact: true })
     .click();
-  await expect(catalog.locator("tbody tr").first()).toContainText("$7.75");
+  await expect(catalog.locator("tbody tr").first()).toContainText(
+    money(descending.items[0].monthly_fee_minor),
+  );
   await page.getByRole("button", { name: "Theme: system" }).click();
   await page.getByRole("menuitemradio", { name: "Dark", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");

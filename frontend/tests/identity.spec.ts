@@ -52,7 +52,9 @@ test("registration, persistent session, revocation and sign in", async ({
     exact: true,
   });
   await expect(sidebar).toBeVisible();
-  await expect.poll(async () => (await sidebar.boundingBox())?.x ?? -100).toBeGreaterThanOrEqual(-0.5);
+  await expect
+    .poll(async () => (await sidebar.boundingBox())?.x ?? -100)
+    .toBeGreaterThanOrEqual(-0.5);
   await expect(
     sidebar.getByRole("button", { name: "Close sidebar", exact: true }),
   ).toBeFocused();
@@ -92,7 +94,7 @@ test("registration, persistent session, revocation and sign in", async ({
   expect(errors).toEqual([]);
 });
 
-test("workspace shows honest unavailable states and redirects old routes", async ({
+test("workspace modules show persisted empty states and redirect old routes", async ({
   page,
 }) => {
   const email = `states-${Date.now()}@example.com`;
@@ -103,24 +105,30 @@ test("workspace shows honest unavailable states and redirects old routes", async
   await page
     .getByLabel("Password", { exact: true })
     .fill("a state test passphrase");
-  await page.getByRole("button", { name: "Create workspace", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Create workspace", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/app$/);
 
-  await expect(page.getByText("Identity active", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "State Studio", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("LIVE API", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Bandwidth", { exact: true })).toHaveCount(0);
 
   const pages: Array<[string, string, string]> = [
-    ["/app/numbers", "Numbers", "No numbers yet"],
-    ["/app/messages", "Messages", "No inbound messages"],
-    ["/app/billing", "Billing", "No billing data"],
-    ["/app/developers", "API & webhooks", "API access is not enabled"],
+    ["/app/numbers", "Numbers", "No records in this view."],
+    ["/app/messages", "Messages", "No records in this view."],
+    ["/app/billing", "Billing", "Available balance"],
+    ["/app/developers", "API & webhooks", "Create API key"],
     ["/app/settings", "Settings", email],
   ];
 
   for (const [path, heading, text] of pages) {
     await page.goto(path);
-    await expect(page.getByRole("heading", { name: heading, level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: heading, level: 1 }),
+    ).toBeVisible();
     await expect(page.getByText(text, { exact: false }).first()).toBeVisible();
   }
 
@@ -235,9 +243,9 @@ test("authenticated workspace is reachable after SSR session validation", async 
   ).toBeVisible();
 
   await page.getByRole("button", { name: /^Numbers/ }).click();
-  await expect(page).toHaveURL(/\/app\/numbers$/);
+  await expect(page).toHaveURL(/\/app\/numbers\?organization=/);
   await page.getByRole("button", { name: "Overview", exact: true }).click();
-  await expect(page).toHaveURL(/\/app$/);
+  await expect(page).toHaveURL(/\/app\?organization=/);
   await expect(
     page.getByRole("heading", { name: "Workspace Studio" }),
   ).toBeVisible();
@@ -328,6 +336,9 @@ test("transition failure and unavailable storage do not block theme changes", as
     colorScheme: "light",
   });
   await page.goto("/login");
+  await expect(
+    page.getByRole("button", { name: "Sign in", exact: true }),
+  ).toBeEnabled();
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.evaluate(() => {

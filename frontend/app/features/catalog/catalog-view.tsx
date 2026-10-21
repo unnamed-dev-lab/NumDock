@@ -1,3 +1,4 @@
+import { PurchaseNumber } from "@/features/operations/numbers";
 import { useEffect, useMemo } from "react";
 import { Navigate } from "react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -5,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { FlaskConical, LoaderCircle } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/motion/button/base";
-import { EmptyState, InlineNote } from "@/features/workspace/workspace-ui";
+import { EmptyState } from "@/features/workspace/workspace-ui";
 import { api, ApiError, errorMessage, unwrap } from "@/lib/api/client";
 import { getCatalogColumns } from "./columns";
 import { CatalogToolbar } from "./catalog-toolbar";
@@ -16,7 +17,27 @@ export function CatalogView() {
   const filters = useCatalogParams();
   const { query, update } = filters;
   const columns = useMemo(
-    () => getCatalogColumns(t, i18n.resolvedLanguage ?? "en"),
+    () => [
+      ...getCatalogColumns(t, i18n.resolvedLanguage ?? "en"),
+      {
+        id: "actions",
+        enableSorting: false,
+        header: () => t("workspace.opsActions"),
+        cell: ({
+          row,
+        }: {
+          row: {
+            original: { id: string; e164: string; monthly_fee_minor: number };
+          };
+        }) => (
+          <PurchaseNumber
+            id={row.original.id}
+            e164={row.original.e164}
+            price={row.original.monthly_fee_minor}
+          />
+        ),
+      },
+    ],
     [t, i18n.resolvedLanguage],
   );
   const catalog = useQuery({
@@ -44,19 +65,6 @@ export function CatalogView() {
       aria-label={t("workspace.catalog")}
       aria-busy={catalog.isFetching}
     >
-      <div>
-        <h2 className="text-xl font-semibold tracking-tight text-foreground">
-          {t("workspace.catalog")}
-        </h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t("workspace.catalogPoolDescription")}
-        </p>
-      </div>
-      {catalog.data?.mode === "mock" ? (
-        <InlineNote icon={FlaskConical}>
-          {t("workspace.catalogMockNotice")}
-        </InlineNote>
-      ) : null}
       <CatalogToolbar {...filters} />
       {catalog.isPending ? (
         <p

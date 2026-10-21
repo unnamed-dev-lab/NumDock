@@ -1,3 +1,4 @@
+import { OperationsProvider } from "@/features/operations/runtime";
 import type { MetaFunction } from "react-router";
 import type { Route } from "./+types/workspace";
 import { localizedMeta } from "@/lib/i18n/meta";
@@ -16,8 +17,8 @@ import { Button } from "@/components/motion/button/base";
 import { ThemeToggle } from "@/components/theme";
 import { WorkspaceRouteError } from "@/components/workspace-route-error";
 import { WorkspaceShell } from "@/features/workspace/workspace-shell";
-import { useWorkspace } from "@/features/workspace/use-workspace";
-import { ApiError, errorMessage, type Identity } from "@/lib/api/client";
+import { useSession } from "@/features/auth/use-session";
+import { errorMessage, type Identity } from "@/lib/api/client";
 
 export type WorkspaceOutletContext = {
   identity: Identity;
@@ -126,11 +127,11 @@ function WorkspaceLoadError({
 export default function Workspace() {
   const { t } = useTranslation();
   const loaderIdentity = useLoaderData<typeof loader>();
-  const { identity, logout } = useWorkspace(loaderIdentity);
+  const { identity, logout } = useSession(loaderIdentity);
 
   if (identity.isPending) return <WorkspaceLoading />;
 
-  if (identity.error instanceof ApiError && identity.error.status === 401) {
+  if (identity.data === null) {
     return <Navigate to="/login" replace />;
   }
 
@@ -144,23 +145,25 @@ export default function Workspace() {
   }
 
   return (
-    <WorkspaceShell
-      identity={identity.data}
-      signingOut={logout.isPending}
-      onSignOut={() => logout.mutate()}
-    >
-      {logout.isError ? (
-        <p
-          role="alert"
-          className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
-        >
-          {errorMessage(logout.error, t)}
-        </p>
-      ) : null}
-      <Outlet
-        context={{ identity: identity.data } satisfies WorkspaceOutletContext}
-      />
-    </WorkspaceShell>
+    <OperationsProvider identity={identity.data}>
+      <WorkspaceShell
+        identity={identity.data}
+        signingOut={logout.isPending}
+        onSignOut={() => logout.mutate()}
+      >
+        {logout.isError ? (
+          <p
+            role="alert"
+            className="mb-6 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+          >
+            {errorMessage(logout.error, t)}
+          </p>
+        ) : null}
+        <Outlet
+          context={{ identity: identity.data } satisfies WorkspaceOutletContext}
+        />
+      </WorkspaceShell>
+    </OperationsProvider>
   );
 }
 

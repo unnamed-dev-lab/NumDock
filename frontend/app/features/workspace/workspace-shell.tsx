@@ -1,3 +1,15 @@
+import { ModeNotice } from "@/features/operations/shared";
+import { StatusBadge } from "./workspace-ui";
+import { AccountMenu } from "@/features/auth/account-menu";
+import { useOperations } from "@/features/operations/runtime";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
@@ -5,15 +17,12 @@ import { Link, useLocation, useNavigate } from "react-router";
 import {
   BookOpen,
   Building2,
-  ChevronDown,
   ChevronRight,
-  CircleDashed,
   Globe2,
   Inbox,
   KeyRound,
   LayoutDashboard,
-  LogOut,
-  Menu,
+  PanelLeft,
   Settings,
   Wallet,
   X,
@@ -34,15 +43,6 @@ import {
   AnimatedSidebarProvider,
   AnimatedSidebarTrigger,
 } from "@/components/motion/animated-sidebar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import type { TranslationKey } from "@/lib/i18n";
 import { roleLabel } from "@/lib/i18n/labels";
 import { LanguageMenu } from "@/components/language";
@@ -53,7 +53,6 @@ type NavigationItem = {
   label: TranslationKey;
   to: string;
   icon: LucideIcon;
-  badge?: TranslationKey;
 };
 
 const primaryNavigation: NavigationItem[] = [
@@ -62,19 +61,16 @@ const primaryNavigation: NavigationItem[] = [
     label: "workspace.numbers",
     to: "/app/numbers",
     icon: Globe2,
-    badge: "workspace.soon",
   },
   {
     label: "workspace.messages",
     to: "/app/messages",
     icon: Inbox,
-    badge: "workspace.soon",
   },
   {
     label: "workspace.billing",
     to: "/app/billing",
     icon: Wallet,
-    badge: "workspace.soon",
   },
 ];
 
@@ -83,7 +79,6 @@ const developerNavigation: NavigationItem[] = [
     label: "workspace.apiWebhooks",
     to: "/app/developers",
     icon: KeyRound,
-    badge: "workspace.soon",
   },
   {
     label: "workspace.apiReference",
@@ -120,6 +115,7 @@ function NavigationGroup({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const { organization } = useOperations();
 
   return (
     <AnimatedSidebarGroup>
@@ -135,14 +131,12 @@ function NavigationGroup({
                   className="min-h-11 md:min-h-9"
                   icon={<Icon className="size-4" />}
                   isActive={active}
-                  onSelect={() => void navigate(item.to)}
-                  badge={
-                    item.badge ? (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <CircleDashed className="size-3" aria-hidden="true" />
-                        {t(item.badge)}
-                      </span>
-                    ) : undefined
+                  onSelect={() =>
+                    void navigate(
+                      organization
+                        ? `${item.to}?organization=${encodeURIComponent(organization.id)}`
+                        : item.to,
+                    )
                   }
                 >
                   {t(item.label)}
@@ -153,65 +147,6 @@ function NavigationGroup({
         </AnimatedSidebarMenu>
       </nav>
     </AnimatedSidebarGroup>
-  );
-}
-
-function AccountMenu({
-  identity,
-  signingOut,
-  onSignOut,
-}: {
-  identity: Identity;
-  signingOut: boolean;
-  onSignOut: () => void;
-}) {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        aria-label={t("workspace.accountMenu")}
-        className="flex h-11 items-center gap-2 rounded-md px-1.5 text-sm outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring sm:h-9"
-      >
-        <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 font-mono text-xs font-semibold text-primary">
-          {initials(identity.user.name)}
-        </span>
-        <span className="hidden max-w-36 truncate text-sm font-medium text-foreground sm:block">
-          {identity.user.name}
-        </span>
-        <ChevronDown
-          className="hidden size-3.5 text-muted-foreground sm:block"
-          aria-hidden="true"
-        />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="font-normal">
-            <span className="block truncate text-sm font-medium text-foreground">
-              {identity.user.name}
-            </span>
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-              {identity.user.email}
-            </span>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void navigate("/app/settings")}>
-          <Settings className="size-4" aria-hidden="true" />
-          {t("workspace.workspaceSettings")}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          variant="destructive"
-          disabled={signingOut}
-          onClick={onSignOut}
-        >
-          <LogOut className="size-4" aria-hidden="true" />
-          {signingOut ? t("workspace.signingOut") : t("workspace.signOut")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
@@ -228,7 +163,8 @@ export function WorkspaceShell({
 }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const organization = identity.organizations[0];
+  const { organization, summary } = useOperations();
+  const [params, setParams] = useSearchParams();
   const currentTitle = sectionTitles[pathname] ?? "workspace.workspace";
 
   return (
@@ -238,34 +174,78 @@ export function WorkspaceShell({
     >
       <AnimatedSidebar
         ariaLabel={t("workspace.workspaceNavigation")}
-        collapsible="none"
+        collapsible="icon"
         className="bg-surface"
         panelClassName="border-r border-border bg-surface"
       >
-        <AnimatedSidebarHeader className="gap-4 p-4">
-          <div className="flex items-center justify-between gap-2">
+        <AnimatedSidebarHeader className="gap-4 p-4 group-data-[state=collapsed]/sidebar:px-3">
+          <div className="flex items-center justify-between gap-2 group-data-[state=collapsed]/sidebar:justify-center">
             <AnimatedSidebarClose
               aria-label={t("common.closeSidebar")}
               className="order-last size-11 md:hidden"
             >
               <X className="size-4" aria-hidden="true" />
             </AnimatedSidebarClose>
-            <Brand />
+            <Brand nameClassName="group-data-[state=collapsed]/sidebar:hidden" />
           </div>
 
-          <div className="rounded-md border border-border bg-background p-3">
+          <div
+            title={organization?.name ?? t("workspace.noOrganization")}
+            className="hidden h-11 items-center justify-center rounded-md border border-border bg-background text-primary group-data-[state=collapsed]/sidebar:flex"
+          >
+            <Building2
+              className="size-4"
+              role="img"
+              aria-label={organization?.name ?? t("workspace.noOrganization")}
+            />
+          </div>
+          <div className="rounded-md border border-border bg-background p-3 group-data-[state=collapsed]/sidebar:hidden">
             <p className="text-xs font-medium text-muted-foreground">
               {t("workspace.organization")}
             </p>
-            <div className="mt-1.5 flex min-w-0 items-center gap-2">
-              <Building2
-                className="size-4 shrink-0 text-primary"
-                aria-hidden="true"
-              />
-              <span className="truncate text-sm font-medium text-foreground">
-                {organization?.name ?? t("workspace.noOrganization")}
-              </span>
-            </div>
+            {identity.organizations.length > 1 ? (
+              <Select
+                value={organization?.id ?? ""}
+                onValueChange={(value) => {
+                  if (value) {
+                    const next = new URLSearchParams(params);
+                    next.set("organization", value);
+                    for (const key of [...next.keys()]) {
+                      if (key.endsWith("Offset")) next.delete(key);
+                    }
+                    setParams(next, { preventScrollReset: true });
+                  }
+                }}
+                items={identity.organizations.map((o) => ({
+                  value: o.id,
+                  label: o.name,
+                }))}
+              >
+                <SelectTrigger
+                  aria-label={t("workspace.organization")}
+                  className="mt-2 w-full"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {identity.organizations.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <div className="mt-1.5 flex min-w-0 items-center gap-2">
+                <Building2
+                  className="size-4 shrink-0 text-primary"
+                  aria-hidden="true"
+                />
+                <span className="truncate text-sm font-medium text-foreground">
+                  {organization?.name ?? t("workspace.noOrganization")}
+                </span>
+              </div>
+            )}
             <p className="mt-1 truncate text-xs text-muted-foreground">
               {organization?.role
                 ? roleLabel(organization.role, t)
@@ -293,11 +273,14 @@ export function WorkspaceShell({
         </AnimatedSidebarContent>
 
         <AnimatedSidebarFooter className="gap-3">
-          <div className="flex min-w-0 items-center gap-2.5 px-1">
+          <div
+            className="flex min-w-0 items-center gap-2.5 px-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+            title={identity.user.name}
+          >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted font-mono text-xs font-semibold text-muted-foreground">
               {initials(identity.user.name)}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 group-data-[state=collapsed]/sidebar:hidden">
               <p className="truncate text-sm font-medium text-foreground">
                 {identity.user.name}
               </p>
@@ -314,9 +297,9 @@ export function WorkspaceShell({
           <div className="flex min-w-0 items-center gap-2">
             <AnimatedSidebarTrigger
               aria-label={t("common.toggleSidebar")}
-              className="size-11 md:hidden"
+              className="size-11 hover:bg-muted/60 md:size-9"
             >
-              <Menu className="size-4" aria-hidden="true" />
+              <PanelLeft className="size-4" aria-hidden="true" />
             </AnimatedSidebarTrigger>
             <nav
               aria-label={t("workspace.breadcrumb")}
@@ -339,6 +322,13 @@ export function WorkspaceShell({
                 {t(currentTitle)}
               </span>
             </nav>
+            {summary?.mode === "mock" ? (
+              <span title={t("workspace.environmentDetails")}>
+                <StatusBadge>
+                  {t("workspace.developmentEnvironment")}
+                </StatusBadge>
+              </span>
+            ) : null}
             <span className="truncate text-sm font-medium text-foreground md:hidden">
               {t(currentTitle)}
             </span>
@@ -364,6 +354,7 @@ export function WorkspaceShell({
           )}
         >
           <div className="mx-auto w-full max-w-6xl p-5 sm:p-8 lg:p-10">
+            <ModeNotice />
             {children}
           </div>
         </main>

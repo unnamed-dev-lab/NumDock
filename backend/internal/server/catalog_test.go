@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -46,6 +47,32 @@ func TestDevelopmentSeedAndCatalog(t *testing.T) {
 	}
 	if userCount != 4 || orgCount != 2 || itemCount != 24 || sessionCount != 0 || originalHash != rerunHash {
 		t.Fatal("seed rerun changed accounts, sessions, or fixture counts")
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE catalog_items SET use_cases=ARRAY['other'] WHERE id='d2000000-0000-4000-8000-000000000001'"); err != nil {
+		t.Fatal(err)
+	}
+	if err := devseed.Run(ctx, f.pool, "development", "a different seed password"); err != nil {
+		t.Fatal(err)
+	}
+	var rerunUseCases []string
+	if err := f.pool.QueryRow(ctx, "SELECT use_cases FROM catalog_items WHERE id='d2000000-0000-4000-8000-000000000001'").Scan(&rerunUseCases); err != nil {
+		t.Fatal(err)
+	}
+	if len(rerunUseCases) != 3 || !slices.Contains(rerunUseCases, "openai") {
+		t.Fatal("seed rerun did not restore catalog use cases")
+	}
+	var missingUseCases int
+	if err := f.pool.QueryRow(ctx, "SELECT count(*) FROM catalog_items WHERE cardinality(use_cases)=0").Scan(&missingUseCases); err != nil {
+		t.Fatal(err)
+	}
+	if missingUseCases != 0 {
+		t.Fatal("catalog fixtures must have use cases")
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE catalog_items SET use_cases=ARRAY['not-a-service'] WHERE id='d2000000-0000-4000-8000-000000000001'"); err == nil {
+		t.Fatal("catalog accepted an invalid use case")
+	}
+	if _, err := f.pool.Exec(ctx, "UPDATE catalog_items SET use_cases='{}' WHERE id='d2000000-0000-4000-8000-000000000001'"); err == nil {
+		t.Fatal("catalog accepted empty use cases")
 	}
 	client := newClient(t)
 	status, _, _ := request(t, client, "GET", f.server.URL+"/v1/catalog/numbers", "", "", "")
@@ -103,6 +130,9 @@ func TestDevelopmentSeedAndCatalog(t *testing.T) {
 		if item.Source != "mock" || item.Provider != "NumDock Mock" {
 			t.Fatal("unmarked fixture")
 		}
+		if len(item.UseCases) == 0 {
+			t.Fatal("fixture missing use cases")
+		}
 	}
 	for _, item := range second.Items {
 		if seen[item.ID] {
@@ -124,12 +154,29 @@ func TestDevelopmentSeedAndCatalog(t *testing.T) {
 	if result := get("?q=TORONTO"); result.Total != 12 {
 		t.Fatal("case insensitive search failed")
 	}
+	openai := get("?use_case=openai")
+	if openai.Total == 0 || len(openai.Items) == 0 {
+		t.Fatal("use case filter returned no inventory")
+	}
+	for _, item := range openai.Items {
+		if !slices.Contains(item.UseCases, "openai") {
+			t.Fatal("use case filter returned mismatched inventory")
+		}
+	}
+	if result := get("?q=openai"); result.Total != openai.Total {
+		t.Fatal("use case search failed")
+	}
+	for _, useCase := range catalog.UseCaseValues {
+		if result := get("?use_case=" + useCase); result.Total == 0 {
+			t.Fatalf("seed has no inventory for use case %q", useCase)
+		}
+	}
 	for _, query := range []string{"?q=%25", "?offset=1000", "?country=ZZ"} {
 		if result := get(query); len(result.Items) != 0 {
 			t.Fatalf("expected empty result: %s", query)
 		}
 	}
-	for _, query := range []string{"?limit=0", "?limit=101", "?limit=", "?offset=-1", "?offset=2147483648", "?sort=password_hash", "?order=sideways", "?country=", "?number_type=", "?capability=", "?country=us", "?country=USA", "?number_type=invalid", "?capability=auth_google", "?limit=10&limit=20", "?organization_id=other", "?q=" + strings.Repeat("x", 101)} {
+	for _, query := range []string{"?limit=0", "?limit=101", "?limit=", "?offset=-1", "?offset=2147483648", "?sort=password_hash", "?order=sideways", "?country=", "?number_type=", "?capability=", "?use_case=", "?use_case=not-a-service", "?use_case=openai&use_case=google", "?country=us", "?country=USA", "?number_type=invalid", "?capability=auth_google", "?limit=10&limit=20", "?organization_id=other", "?q=" + strings.Repeat("x", 101)} {
 		status, _, _ := request(t, client, "GET", f.server.URL+"/v1/catalog/numbers"+query, "", "", "")
 		if status != 400 {
 			t.Fatalf("invalid query accepted: %s (%d)", query, status)

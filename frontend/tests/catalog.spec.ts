@@ -173,14 +173,21 @@ test("database catalog filters, pagination, states, themes and URL persistence",
   await expect(
     catalog.getByText("No matching catalog records.", { exact: false }),
   ).toBeVisible();
+  // Leases and the release quarantine change available inventory between runs.
   await page.route("**/v1/catalog/numbers*", async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 1500));
     await route.continue();
   });
+  const torontoResponse = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/v1/catalog/numbers" &&
+      new URL(response.url()).searchParams.get("q") === "Toronto",
+  );
   await page.goto("/app/numbers?tab=catalog&q=Toronto");
   await expect(catalog.getByRole("status")).toBeVisible();
+  const toronto = await (await torontoResponse).json();
   await expect(
     catalog.getByRole("cell", { name: /NumDock Mock$/ }),
-  ).toHaveCount(10);
+  ).toHaveCount(Math.min(10, toronto.total));
   expect(errors).toEqual([]);
 });

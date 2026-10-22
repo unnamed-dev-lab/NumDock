@@ -7,6 +7,7 @@ const baseURL = `http://localhost:${port}`;
 
 export default defineConfig({
   testDir: "./tests",
+  testIgnore: ["tests/mock/**"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

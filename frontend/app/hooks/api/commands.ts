@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, csrfHeaders, unwrap } from "@/lib/api/client";
+import { api, ApiError, csrfHeaders, unwrap } from "@/lib/api/client";
 import type { components } from "@/lib/api/schema";
 import { queryKeys } from "./keys";
 import { invalidateAccount } from "./cache";
@@ -40,13 +40,36 @@ async function execute({
         { params, headers, body },
       ),
     );
+  if (action === "purchase") {
+    const { catalog_item_id, purpose, confirmed_terms, rental_days } = body;
+    if (!confirmed_terms)
+      throw new ApiError(400, "terms_required", "Confirm your authorized use.");
+    if (!rental_days || !catalog_item_id || !purpose)
+      throw new ApiError(
+        400,
+        "invalid_rental_period",
+        "Choose a rental period.",
+      );
+    return unwrap(
+      await api.POST("/v1/organizations/{organization_id}/orders", {
+        params,
+        headers,
+        body: {
+          ...body,
+          catalog_item_id,
+          purpose,
+          confirmed_terms,
+          rental_days,
+        },
+      }),
+    );
+  }
   const paths = {
     create_payment: "/v1/organizations/{organization_id}/billing/payments",
     pay_payment:
       "/v1/organizations/{organization_id}/billing/payments/{resource_id}/confirm",
     cancel_payment:
       "/v1/organizations/{organization_id}/billing/payments/{resource_id}/cancel",
-    purchase: "/v1/organizations/{organization_id}/orders",
     release: "/v1/organizations/{organization_id}/leases/{resource_id}/release",
     refund: "/v1/organizations/{organization_id}/orders/{resource_id}/refund",
     simulate: "/v1/organizations/{organization_id}/messages/simulate",
@@ -64,11 +87,11 @@ export function useCommandMutation(callbacks?: {
     onSuccess: (result, input) => {
       const resources: Record<Action, readonly string[]> = {
         create_payment: ["payments"],
-        pay_payment: ["payments", "payment", "wallet", "ledger"],
+        pay_payment: ["payments", "payment", "ledger"],
         cancel_payment: ["payments", "payment"],
-        purchase: ["numbers", "orders", "wallet", "ledger", "overview"],
+        purchase: ["numbers", "orders", "ledger", "overview"],
         release: ["numbers", "orders", "overview"],
-        refund: ["orders", "wallet", "ledger", "overview"],
+        refund: ["orders", "ledger", "overview"],
         simulate: ["messages", "overview"],
         delete_message: ["messages", "message", "overview"],
       };

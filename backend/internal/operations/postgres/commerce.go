@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
+	"numdock/backend/internal/catalog"
 	"numdock/backend/internal/operations"
 	db "numdock/backend/internal/operations/postgres/db"
 	"strings"
@@ -162,7 +163,19 @@ func contains(values []string, match string) bool {
 	return false
 }
 func (s *Store) purchase(ctx context.Context, tx pgx.Tx, q *db.Queries, a operations.Actor, c operations.Command) (operations.Result, error) {
-	if !c.ConfirmedTerms || !contains([]string{"customer_support", "product_notifications", "service_testing"}, c.Purpose) || strings.TrimSpace(c.CatalogItemID) == "" {
+	if !c.ConfirmedTerms {
+		return operations.Result{}, operations.Fail("terms_required")
+	}
+	// Existing internal seed commands keep their original payload and idempotency hash.
+	// HTTP purchase requests require an explicit rental_days value.
+	days := c.RentalDays
+	if days == 0 {
+		days = 30
+	}
+	if _, ok := catalog.RentalPrice(0, days); !ok {
+		return operations.Result{}, operations.Fail("invalid_rental_period")
+	}
+	if !contains([]string{"customer_support", "product_notifications", "service_testing"}, c.Purpose) || strings.TrimSpace(c.CatalogItemID) == "" {
 		return operations.Result{}, operations.Fail("validation_failed")
 	}
 	// All purchase/refund flows lock wallet before inventory to avoid lock inversion.
@@ -180,7 +193,7 @@ func (s *Store) purchase(ctx context.Context, tx pgx.Tx, q *db.Queries, a operat
 	if item.Status != "available" {
 		return operations.Result{}, operations.Fail("inventory_unavailable")
 	}
-	price := int64(item.MonthlyFeeMinor)
+	price, _ := catalog.RentalPrice(item.MonthlyFeeMinor, days)
 	if w.AvailableMinor < price {
 		return operations.Result{}, operations.Fail("insufficient_balance")
 	}
@@ -199,11 +212,11 @@ func (s *Store) purchase(ctx context.Context, tx pgx.Tx, q *db.Queries, a operat
 		}
 		state, failure = "failed", "mock_provider_failure"
 	}
-	order, err := q.CreateOrderWithID(ctx, db.CreateOrderWithIDParams{ID: orderID, OrganizationID: a.OrganizationID, UserID: a.UserID, CatalogItemID: item.ID, Status: state, Purpose: c.Purpose, AmountMinor: price, FailureCode: failure})
+	order, err := q.CreateOrderWithID(ctx, db.CreateOrderWithIDParams{ID: orderID, OrganizationID: a.OrganizationID, UserID: a.UserID, CatalogItemID: item.ID, Status: state, Purpose: c.Purpose, AmountMinor: price, RentalDays: days, FailureCode: failure})
 	if err != nil {
 		return operations.Result{}, err
 	}
-	output := operations.Order{ID: order.ID, E164: item.E164, Status: order.Status, Purpose: order.Purpose, AmountMinor: order.AmountMinor, FailureCode: order.FailureCode, CreatedAt: order.CreatedAt.Time}
+	output := operations.Order{ID: order.ID, E164: item.E164, Status: order.Status, Purpose: order.Purpose, AmountMinor: order.AmountMinor, RentalDays: order.RentalDays, FailureCode: order.FailureCode, CreatedAt: order.CreatedAt.Time}
 	result := operations.Result{ID: order.ID, Status: state, Order: &output}
 	if providerErr != nil {
 		updated, err := s.ledger(ctx, q, a.OrganizationID, order.ID, "release", price, -price)
@@ -217,7 +230,7 @@ func (s *Store) purchase(ctx context.Context, tx pgx.Tx, q *db.Queries, a operat
 			return result, err
 		}
 		result.Wallet = &updated
-		lease, err := q.CreateLease(ctx, db.CreateLeaseParams{OrganizationID: a.OrganizationID, OrderID: order.ID, CatalogItemID: item.ID, ProviderReference: reference, ExpiresAt: date(time.Now().Add(30 * 24 * time.Hour))})
+		lease, err := q.CreateLease(ctx, db.CreateLeaseParams{OrganizationID: a.OrganizationID, OrderID: order.ID, CatalogItemID: item.ID, ProviderReference: reference, ExpiresAt: date(time.Now().Add(time.Duration(days) * 24 * time.Hour))})
 		if err != nil {
 			return result, err
 		}
@@ -227,7 +240,7 @@ func (s *Store) purchase(ctx context.Context, tx pgx.Tx, q *db.Queries, a operat
 		if err = s.queue(ctx, tx, "expire_lease", lease.ID, lease.ExpiresAt.Time); err != nil {
 			return result, err
 		}
-		result.Number = &operations.Number{ID: lease.ID, E164: item.E164, Status: "active", CountryCode: item.CountryCode, NumberType: item.NumberType, Capabilities: item.Capabilities, MonthlyFeeMinor: item.MonthlyFeeMinor, StartedAt: lease.StartedAt.Time, ExpiresAt: lease.ExpiresAt.Time, OrderID: order.ID}
+		result.Number = &operations.Number{ID: lease.ID, E164: item.E164, Status: "active", CountryCode: item.CountryCode, NumberType: item.NumberType, Capabilities: item.Capabilities, UseCases: item.UseCases, MonthlyFeeMinor: item.MonthlyFeeMinor, RentalDays: days, AmountMinor: price, StartedAt: lease.StartedAt.Time, ExpiresAt: lease.ExpiresAt.Time, OrderID: order.ID}
 	}
 	if err = s.emit(ctx, tx, q, a.OrganizationID, "order.updated", order.ID); err != nil {
 		return result, err

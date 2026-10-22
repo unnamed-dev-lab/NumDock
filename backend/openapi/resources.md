@@ -1,13 +1,14 @@
 # Account resources
 
-Contract version 0.9 removes the aggregate workspace/view API. All private resource
-paths below are relative to /v1/organizations/{organization_id}; the identifier is
+Current contract version: 0.11. The aggregate workspace/view API has been removed.
+All private resource paths below are relative to /v1/organizations/{organization_id};
+the identifier is
 an internal ownership boundary and every request checks the session's membership.
 
 | Method | Path | Response |
 | --- | --- | --- |
 | GET | /summary | Mode, role, current wallet and counts; no resource records |
-| GET | /numbers | NumberList |
+| GET | /numbers | NumberList; includes catalog use-case tags |
 | GET | /messages | MessageList; no message bodies |
 | GET | /messages/{resource_id} | Authorized message body, audited on access |
 | GET | /orders | OrderList |

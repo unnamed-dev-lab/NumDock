@@ -100,17 +100,3 @@ export function useAccountSummary(org: string) {
       ),
   });
 }
-export function useWallet(org: string) {
-  return useQuery({
-    queryKey: queryKeys.wallet(org),
-    enabled: !!org,
-    retry: retryRead,
-    queryFn: async ({ signal }) =>
-      unwrap(
-        await api.GET("/v1/organizations/{organization_id}/billing/wallet", {
-          params: { path: { organization_id: org } },
-          signal,
-        }),
-      ),
-  });
-}

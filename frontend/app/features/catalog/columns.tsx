@@ -3,6 +3,7 @@ import type { TFunction } from "i18next";
 import { Badge } from "@/components/ui/badge";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import type { VirtualNumberCatalogItem } from "./types";
+import { catalogUseCaseLabels } from "./use-cases";
 
 export function getCatalogColumns(
   t: TFunction,
@@ -72,6 +73,21 @@ export function getCatalogColumns(
                     ? "workspace.capabilityVoice"
                     : "workspace.capabilityMms",
               )}
+            </Badge>
+          ))}
+        </div>
+      ),
+    },
+    {
+      accessorKey: "use_cases",
+      meta: { label: t("workspace.useCases") },
+      enableSorting: false,
+      header: () => t("workspace.useCases"),
+      cell: ({ row }) => (
+        <div className="flex flex-wrap gap-1.5">
+          {row.original.use_cases.map((useCase) => (
+            <Badge key={useCase} variant="outline">
+              {t(catalogUseCaseLabels[useCase] ?? "workspace.useCaseOther")}
             </Badge>
           ))}
         </div>

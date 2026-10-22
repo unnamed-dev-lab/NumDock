@@ -95,6 +95,12 @@ export function BillingTables() {
         cell: ({ row }) => <State value={row.original.status} />,
       },
       {
+        accessorKey: "rental_days",
+        header: t("workspace.rentalPeriod"),
+        cell: ({ row }) =>
+          t("workspace.rentalDays", { days: row.original.rental_days }),
+      },
+      {
         accessorKey: "amount_minor",
         header: t("workspace.opsAmount"),
         cell: ({ row }) => money(row.original.amount_minor),

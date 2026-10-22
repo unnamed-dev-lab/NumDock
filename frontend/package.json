@@ -9,6 +9,7 @@
     "lint": "eslint . --max-warnings 0 && node scripts/check-colors.mjs && node scripts/check-components.mjs && node scripts/check-i18n.mjs",
     "generate:api": "openapi-typescript ../backend/openapi/openapi.yaml -o app/lib/api/schema.d.ts",
     "test:e2e": "playwright test",
+    "test:e2e:mock": "playwright test --config=playwright.mock.config.ts",
     "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {

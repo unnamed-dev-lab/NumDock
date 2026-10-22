@@ -1,5 +1,5 @@
 import { OperationsProvider } from "@/features/operations/runtime";
-import type { MetaFunction } from "react-router";
+import type { MetaFunction, ShouldRevalidateFunction } from "react-router";
 import type { Route } from "./+types/workspace";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { LanguageMenu } from "@/components/language";
@@ -18,7 +18,8 @@ import { ThemeToggle } from "@/components/theme";
 import { WorkspaceRouteError } from "@/components/workspace-route-error";
 import { WorkspaceShell } from "@/features/workspace/workspace-shell";
 import { useSession } from "@/hooks/api/auth";
-import { errorMessage, type Identity } from "@/lib/api/client";
+import { fetchServerIdentity } from "@/lib/api/server";
+import { ApiError, errorMessage, type Identity } from "@/lib/api/client";
 
 export type WorkspaceOutletContext = {
   identity: Identity;
@@ -30,20 +31,16 @@ export const meta: MetaFunction = ({ matches }) => [
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
-  const baseURL = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8080";
-  let response: Response;
+  let identity: Identity | null;
   try {
-    response = await fetch(`${baseURL}/v1/me`, {
-      headers: { cookie: request.headers.get("cookie") ?? "" },
-      cache: "no-store",
-    });
-  } catch {
-    throw new Response("Unable to reach the identity service.", {
-      status: 502,
+    identity = await fetchServerIdentity(request);
+  } catch (error) {
+    throw new Response("Unable to load the workspace.", {
+      status: error instanceof ApiError && error.status === 503 ? 503 : 502,
     });
   }
 
-  if (response.status === 401) {
+  if (!identity) {
     const url = new URL(request.url);
     const target = url.pathname + url.search;
     throw redirect(
@@ -52,13 +49,7 @@ export async function loader({ request }: Route.LoaderArgs) {
         : "/login?returnTo=" + encodeURIComponent(target),
     );
   }
-  if (!response.ok) {
-    throw new Response("Unable to load the workspace.", {
-      status: response.status === 503 ? 503 : 502,
-    });
-  }
 
-  const identity = (await response.json()) as Identity;
   const url = new URL(request.url);
   const selected = url.searchParams.get("organization");
   if (selected) {
@@ -74,6 +65,24 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
   return identity;
 }
+
+// Search params below /app belong to TanStack Query: tabs, filters, pagination
+// and payment references must not re-run the identity loader on every change.
+// Organization changes still need server-side membership validation.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.pathname !== nextUrl.pathname) return defaultShouldRevalidate;
+  if (
+    currentUrl.searchParams.get("organization") !==
+    nextUrl.searchParams.get("organization")
+  )
+    return defaultShouldRevalidate;
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  return false;
+};
 
 function WorkspaceLoading() {
   const { t } = useTranslation();

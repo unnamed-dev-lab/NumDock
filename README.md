@@ -93,13 +93,15 @@ pnpm typecheck
 pnpm lint
 pnpm build
 pnpm exec playwright install chromium
-# 先启动已完成迁移的后端。Playwright 会启动或复用前端开发服务。
+# 不依赖 PostgreSQL 的 Mock API UI 流程（支付、下单、SSE、移动/深色）。
+pnpm test:e2e:mock
+# 真实后端的完整浏览器流程；先启动已完成迁移的后端。
 pnpm test:e2e
 ```
 
 未设置 `TEST_DATABASE_URL` 时，PostgreSQL 集成测试会明确跳过；不能将其视为数据库测试通过。CI 使用 PostgreSQL 17 服务执行同等的格式化、vet、race 测试、构建、sqlc diff 和 staticcheck。浏览器注册流程会在开发库留下带 `browser-` 前缀的测试账户。
 
-前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；号码、消息、账单与开发者页面均接入持久化 Mock 业务流程。
+前端 Lint 同时检查颜色变量、Base UI 配置、Radix 依赖／导入禁令和组件安装来源清单。浏览器测试覆盖表单、会话、主题切换、菜单键盘操作、移动侧边栏焦点及工作区加载／错误／空状态；号码、消息、账单与开发者页面均接入持久化 Mock 业务流程。`test:e2e:mock` 使用独立的内存 Mock API 验证支付、取消、幂等重试、下单失败、SSE 缓存失效及移动端深色流程，不依赖数据库；真实 PostgreSQL 状态机仍由 `test:e2e` 和后端集成测试验证。前端 CI 的 `real-e2e` 任务使用 PostgreSQL 17 服务完成迁移和 seed、启动 API 后运行完整 `test:e2e`；Mock UI 套件则在独立任务中运行。
 
 SQL 变更后在 `backend/` 运行 `go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.31.1 generate`；OpenAPI 变更后在 `frontend/` 运行 `pnpm generate:api`。提交源文件和生成结果，不手动修改生成类型。
 

@@ -4,7 +4,6 @@ export const queryKeys = {
   catalogNumbers: (query: object) => ["catalog", "numbers", query] as const,
   account: (org: string) => ["account", org] as const,
   summary: (org: string) => ["account", org, "summary"] as const,
-  wallet: (org: string) => ["account", org, "wallet"] as const,
   resource: (org: string, resource: string) =>
     ["account", org, resource] as const,
   list: (org: string, resource: string, filters: object) =>

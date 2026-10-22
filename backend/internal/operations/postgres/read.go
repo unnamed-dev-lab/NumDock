@@ -47,7 +47,7 @@ func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filte
 			return out, e
 		}
 		for _, r := range rows {
-			out.Numbers = append(out.Numbers, operations.Number{ID: r.ID, E164: r.E164, Status: r.Status, CountryCode: r.CountryCode, NumberType: r.NumberType, Capabilities: r.Capabilities, MonthlyFeeMinor: r.MonthlyFeeMinor, StartedAt: r.StartedAt.Time, ExpiresAt: r.ExpiresAt.Time, OrderID: r.OrderID})
+			out.Numbers = append(out.Numbers, operations.Number{ID: r.ID, E164: r.E164, Status: r.Status, CountryCode: r.CountryCode, NumberType: r.NumberType, Capabilities: r.Capabilities, UseCases: r.UseCases, MonthlyFeeMinor: r.MonthlyFeeMinor, RentalDays: r.RentalDays, AmountMinor: r.AmountMinor, StartedAt: r.StartedAt.Time, ExpiresAt: r.ExpiresAt.Time, OrderID: r.OrderID})
 		}
 		out.Total, err = q.CountNumbers(ctx, db.CountNumbersParams{OrganizationID: a.OrganizationID, Column2: f.Status, Column3: f.Search})
 	case "payments":
@@ -65,7 +65,7 @@ func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filte
 			return out, e
 		}
 		for _, r := range rows {
-			out.Orders = append(out.Orders, operations.Order{ID: r.ID, E164: r.E164, Status: r.Status, Purpose: r.Purpose, AmountMinor: r.AmountMinor, FailureCode: r.FailureCode, CreatedAt: r.CreatedAt.Time})
+			out.Orders = append(out.Orders, operations.Order{ID: r.ID, E164: r.E164, Status: r.Status, Purpose: r.Purpose, AmountMinor: r.AmountMinor, RentalDays: r.RentalDays, FailureCode: r.FailureCode, CreatedAt: r.CreatedAt.Time})
 		}
 		out.Total, err = q.CountOrders(ctx, db.CountOrdersParams{OrganizationID: a.OrganizationID, Column2: f.Status})
 	case "ledger":

@@ -2,9 +2,10 @@ import type { MetaFunction, ShouldRevalidateFunction } from "react-router";
 import type { Route } from "./+types/home";
 import { useLoaderData } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowRight, PhoneCall, Inbox, Wallet, Check } from "lucide-react";
-import { ButtonLink } from "@/components/motion/button/base";
+import { Check, Inbox, PhoneCall, Search, ShieldCheck } from "lucide-react";
 import { PublicFooter, PublicHeader } from "@/features/marketing/public-shell";
+import { CatalogPulse } from "@/features/marketing/catalog-pulse";
+import { HeroSearch } from "@/features/marketing/hero-search";
 import { CatalogView } from "@/features/catalog/catalog-view";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { fetchPublicCatalog } from "@/lib/public-catalog.server";
@@ -36,7 +37,7 @@ export default function Home() {
             <PhoneCall className="size-4" aria-hidden="true" />
             {t("home.productLabel")}
           </p>
-          <div className="grid gap-7 lg:grid-cols-[1.3fr_0.7fr] lg:items-end lg:gap-12">
+          <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start lg:gap-12">
             <div>
               <h1 className="max-w-3xl text-balance font-display text-3xl font-semibold leading-tight tracking-tight sm:text-5xl">
                 {t("home.shopTitle")}
@@ -44,7 +45,8 @@ export default function Home() {
               <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
                 {t("home.shopDescription")}
               </p>
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+              <HeroSearch />
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
                 {(
                   [
                     "home.browseFreely",
@@ -59,11 +61,8 @@ export default function Home() {
                 ))}
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 lg:justify-end">
-              <ButtonLink href="#numbers" size="lg">
-                {t("home.browseNumbers")}
-                <ArrowRight className="size-4" aria-hidden="true" />
-              </ButtonLink>
+            <div className="hidden lg:block">
+              <CatalogPulse initial={catalog} />
             </div>
           </div>
         </section>
@@ -97,46 +96,49 @@ export default function Home() {
         <section className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-12 sm:px-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">
-              {t("home.coreTitle")}
+              {t("home.stepsTitle")}
             </h2>
             <p className="mt-3 max-w-md text-sm leading-7 text-muted-foreground">
-              {t("home.coreDescription")}
+              {t("home.stepsDescription")}
             </p>
           </div>
-          <dl className="divide-y divide-border border-y border-border">
+          <ol className="divide-y divide-border border-y border-border">
             {(
               [
                 {
-                  icon: PhoneCall,
-                  title: "home.leaseTitle",
-                  description: "home.leaseDescription",
+                  icon: Search,
+                  title: "home.stepSearchTitle",
+                  description: "home.stepSearchDescription",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "home.stepConfirmTitle",
+                  description: "home.stepConfirmDescription",
                 },
                 {
                   icon: Inbox,
-                  title: "home.inboxTitle",
-                  description: "home.inboxDescription",
-                },
-                {
-                  icon: Wallet,
-                  title: "home.integrationTitle",
-                  description: "home.integrationDescription",
+                  title: "home.stepLeaseTitle",
+                  description: "home.stepLeaseDescription",
                 },
               ] as const
-            ).map(({ icon: Icon, title, description }) => (
-              <div key={title} className="flex gap-4 py-5">
+            ).map(({ icon: Icon, title, description }, index) => (
+              <li key={title} className="flex gap-4 py-5">
+                <span className="mt-0.5 w-6 shrink-0 font-mono text-xs font-medium text-primary">
+                  0{index + 1}
+                </span>
                 <Icon
                   className="mt-1 size-5 shrink-0 text-primary"
                   aria-hidden="true"
                 />
                 <div>
-                  <dt className="text-sm font-semibold">{t(title)}</dt>
-                  <dd className="mt-1 text-sm leading-6 text-muted-foreground">
+                  <h3 className="text-sm font-semibold">{t(title)}</h3>
+                  <p className="mt-1 text-sm leading-6 text-muted-foreground">
                     {t(description)}
-                  </dd>
+                  </p>
                 </div>
-              </div>
+              </li>
             ))}
-          </dl>
+          </ol>
         </section>
       </main>
       <PublicFooter />

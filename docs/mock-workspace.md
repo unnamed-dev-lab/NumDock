@@ -4,10 +4,11 @@
 
 1. 执行 `./scripts/backend.ps1 migrate`、`seed`、`run`，另开终端启动前端。
 2. 使用 `owner@numdock.test` 登录。密码见 Git 忽略的 `.local/dev-seed-password`。
-3. 在账单页创建充值订单，确认开发支付后查看余额和账本；不发生真实资金交易。待支付订单可恢复、取消，15 分钟后过期。
-4. 在号码目录申请号码，选择合法用途并确认。租期 30 天、不自动续费；可开启供应商失败开关查看资金返还。
-5. 在“你的号码”点击“模拟收信”，然后在消息页查看、已读或删除。
-6. 先释放号码，再在下单后 14 天内退款。号码释放后隔离 5 分钟；每笔订单只能退款一次。
+3. 如果本机 8080 已被其他服务占用，请让 NumDock 后端监听其他端口（例如 `HTTP_ADDR=127.0.0.1:8081`），并在前端启动时设置 `API_INTERNAL_URL=http://127.0.0.1:8081`；否则 `/v1` 可能被代理到错误的本地应用，目录会显示无法加载。
+4. 在账单页创建充值订单，确认开发支付后查看余额和账本；不发生真实资金交易。待支付订单可恢复、取消，15 分钟后过期。
+5. 在号码目录申请号码，选择合法用途并确认。可选择 3、7 或 30 天，不自动续费。未选租期或未勾选授权用途时，确认申请按钮不可用。
+6. 在“你的号码”点击“模拟收信”，然后在消息页查看、已读或删除。
+7. 先释放号码，再在下单后 14 天内退款。号码释放后隔离 5 分钟；每笔订单只能退款一次。
 
 所有金额均为 USD 最小单位。Mock 模拟收信免费；目录中的短信单价仅为演示报价，不参与开发版扣费。过期／释放后不接收入站消息，晚到或异常事件进入隔离。消息正文和原始供应商事件加密，消息 30 天过期，删除时同步清除对应原始正文。
 
@@ -19,7 +20,7 @@ Windows 脚本在 development 下自动生成 `.local/data-encryption-key`，值
 
 ## 业务 API
 
-公开目录使用 GET /v1/catalog/numbers。私有资源位于 /v1/organizations/{organization_id} 下，路径参数用于内部授权校验；普通用户界面无需选择组织。
+公开目录使用 GET /v1/catalog/numbers，可按 country、number_type、capability、use_case 或 q 筛选。`use_cases` 是目录的用途场景标签（如 openai、google、telegram），仅描述预期场景，不保证第三方服务接受；重新执行 `seed` 会为已有目录 fixtures 回填该字段。私有资源位于 /v1/organizations/{organization_id} 下，路径参数用于内部授权校验；普通用户界面无需选择组织。
 
 列表拆分为 /numbers、/messages、/orders、/billing/ledger、/billing/payments，统一返回 {items, mode, total, limit, offset}。查询参数仅用于 limit/offset/status/q，不再选择资源类型。摘要使用 /summary，余额使用 /billing/wallet。完整说明见 [资源接口](../backend/openapi/resources.md)，充值规则见 [支付接口](../backend/openapi/payments.md)。
 
@@ -29,7 +30,7 @@ Windows 脚本在 development 下自动生成 `.local/data-encryption-key`，值
 | GET | /billing/payments/{reference} | 当前账户的支付详情 |
 | POST | /billing/payments/{id}/confirm | 确认开发支付，成功后幂等入账 |
 | POST | /billing/payments/{id}/cancel | 取消待支付订单 |
-| POST | /orders | 申请号码，含 catalog_item_id、purpose、confirmed_terms |
+| POST | /orders | 申请号码，含 catalog_item_id、purpose、confirmed_terms=true、rental_days（3/7/30） |
 | POST | /leases/{id}/release | 释放租约 |
 | POST | /orders/{id}/refund | 按开发规则退款 |
 | POST | /messages/simulate | 指定 lease_id，可选 body，最多 1600 字符 |
@@ -45,3 +46,5 @@ API Key、用户外发 Webhook、聚合 /workspace?view=... 和直接 /billing/m
 开发供应商入站使用 `POST /v1/providers/mock/webhook`，JSON 为 `{id,lease_id,body,occurred_at}`。`X-NumDock-Timestamp` 为秒级时间，`X-NumDock-Signature` 为十六进制 HMAC。先对解码后的 `DATA_ENCRYPTION_KEY` 计算 `HMAC-SHA256(key, "numdock/mock-provider-webhook")` 得到签名密钥，再按同一 `timestamp + "." + rawBody` 算法签名。时间窗口 5 分钟；相同事件 ID／内容去重，内容冲突返回 409，无法匹配有效租约的消息隔离。
 
 实时事件来自 PostgreSQL 持久表，SSE 只发送资源元数据；前端集中 hooks 按资源合并并失效相关缓存。单次连接约 10 秒，浏览器自动携带事件游标重连。
+
+开发租期报价由目录 rental_options 返回，按 30 天价格按日折算、不足一美分向上取整。例如 30 天 US$3.50，3 天 US$0.35、7 天 US$0.82。订单持久化租期与本次费用，租约和 River 到期任务使用实际选择的天数；退款按原订单扣费金额执行。历史订单保留为 30 天。

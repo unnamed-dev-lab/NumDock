@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { useCatalogParams } from "./use-catalog-params";
+import { catalogUseCaseLabels, catalogUseCases } from "./use-cases";
 
 export function CatalogToolbar({
   query,
@@ -18,7 +19,11 @@ export function CatalogToolbar({
 }: ReturnType<typeof useCatalogParams>) {
   const { t } = useTranslation();
   const isFiltered = Boolean(
-    query.q || query.country || query.number_type || query.capability,
+    query.q ||
+    query.country ||
+    query.number_type ||
+    query.capability ||
+    query.use_case,
   );
   const countries = [
     { value: "all", label: t("workspace.filterAllCountries") },
@@ -42,6 +47,13 @@ export function CatalogToolbar({
     { value: "sms", label: t("workspace.capabilitySms") },
     { value: "voice", label: t("workspace.capabilityVoice") },
     { value: "mms", label: t("workspace.capabilityMms") },
+  ];
+  const useCases = [
+    { value: "all", label: t("workspace.filterAllUseCases") },
+    ...catalogUseCases.map((value) => ({
+      value,
+      label: t(catalogUseCaseLabels[value]),
+    })),
   ];
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -117,6 +129,28 @@ export function CatalogToolbar({
           </SelectTrigger>
           <SelectContent>
             {capabilities.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          items={useCases}
+          value={query.use_case ?? "all"}
+          onValueChange={(value) => {
+            if (value) update({ use_case: value });
+          }}
+        >
+          <SelectTrigger
+            size="sm"
+            className="h-9 min-w-32"
+            aria-label={t("workspace.filterUseCase")}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {useCases.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
               </SelectItem>

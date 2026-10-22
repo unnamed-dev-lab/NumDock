@@ -21,6 +21,7 @@ type Filter struct {
 	Limit, Offset        int32
 }
 type Command struct {
+	RentalDays      int32  `json:"rental_days,omitempty"`
 	Kind            string `json:"-"`
 	ResourceID      string `json:"-"`
 	AmountMinor     int64  `json:"amount_minor,omitempty"`
@@ -42,18 +43,22 @@ type Counts struct {
 	CompletedOrders int64 `json:"completed_orders"`
 }
 type Number struct {
+	AmountMinor     int64     `json:"amount_minor"`
+	RentalDays      int32     `json:"rental_days"`
 	ID              string    `json:"id"`
 	E164            string    `json:"e164"`
 	Status          string    `json:"status"`
 	CountryCode     string    `json:"country_code"`
 	NumberType      string    `json:"number_type"`
 	Capabilities    []string  `json:"capabilities"`
+	UseCases        []string  `json:"use_cases"`
 	MonthlyFeeMinor int32     `json:"monthly_fee_minor"`
 	StartedAt       time.Time `json:"started_at"`
 	ExpiresAt       time.Time `json:"expires_at"`
 	OrderID         string    `json:"order_id"`
 }
 type Order struct {
+	RentalDays  int32     `json:"rental_days"`
 	ID          string    `json:"id"`
 	E164        string    `json:"e164"`
 	Status      string    `json:"status"`

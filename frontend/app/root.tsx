@@ -10,6 +10,7 @@ import {
   useRouteError,
   data,
   useRouteLoaderData,
+  type ShouldRevalidateFunction,
 } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider, themeScript } from "@/components/theme";
@@ -32,6 +33,19 @@ export function loader({ request }: Route.LoaderArgs) {
     },
   );
 }
+
+// The root loader only resolves locale. Search-param navigations belong to
+// route loaders and TanStack Query; do not fetch locale again for every filter.
+// A same-URL revalidation (for example the language switcher) still runs it.
+export const shouldRevalidate: ShouldRevalidateFunction = ({
+  currentUrl,
+  nextUrl,
+  defaultShouldRevalidate,
+}) => {
+  if (currentUrl.href === nextUrl.href) return defaultShouldRevalidate;
+  if (currentUrl.pathname === nextUrl.pathname) return false;
+  return defaultShouldRevalidate;
+};
 
 export const headers: Route.HeadersFunction = ({ loaderHeaders }) =>
   loaderHeaders;

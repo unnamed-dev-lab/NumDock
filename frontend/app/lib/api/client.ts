@@ -3,7 +3,47 @@ import type { paths, components } from "./schema";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "@/lib/i18n";
 
-export const api = createClient<paths>({ credentials: "same-origin" });
+function nonContractResponse(response: Response) {
+  if (typeof window !== "undefined" && import.meta.env.DEV) {
+    console.error("[numdock] API returned a non-contract response", {
+      status: response.status,
+      url: response.url,
+      contentType: response.headers.get("content-type"),
+    });
+  }
+  return new Response(
+    JSON.stringify({
+      code: "not_ready",
+      message: "The API did not return a contract response.",
+    }),
+    {
+      status: 502,
+      headers: {
+        "content-type": "application/json",
+        ...(response.headers.has("x-request-id")
+          ? { "x-request-id": response.headers.get("x-request-id")! }
+          : {}),
+      },
+    },
+  );
+}
+
+// Non-JSON responses are usually a dev proxy or reverse proxy serving a
+// different application. Convert them into the contract error shape so every
+// caller gets one retryable ApiError instead of a parse failure.
+const jsonOnlyFetch: typeof globalThis.fetch = async (input, init) => {
+  const response = await globalThis.fetch(input, init);
+  if (response.status === 204) return response;
+  const contentType = response.headers.get("content-type") ?? "";
+  return contentType.includes("application/json")
+    ? response
+    : nonContractResponse(response);
+};
+
+export const api = createClient<paths>({
+  credentials: "same-origin",
+  fetch: jsonOnlyFetch,
+});
 export type Identity = components["schemas"]["Identity"];
 
 export class ApiError extends Error {
@@ -17,20 +57,54 @@ export class ApiError extends Error {
   }
 }
 
+function logNonContractResponse(response: Response) {
+  if (typeof window !== "undefined" && import.meta.env.DEV) {
+    console.error("[numdock] API returned a non-contract response", {
+      status: response.status,
+      url: response.url,
+      contentType: response.headers.get("content-type"),
+    });
+  }
+}
+
 export function unwrap<T>(result: {
   data?: T;
   error?: components["schemas"]["Error"];
   response: Response;
 }): T {
-  if (!result.response.ok || result.data === undefined) {
+  if (!result.response.ok) {
+    // A non-JSON error usually means the proxy or API origin is serving a
+    // different application. Keep it retryable instead of surfacing a raw
+    // validation/request failure.
+    if (!result.error) {
+      logNonContractResponse(result.response);
+      throw new ApiError(
+        result.response.status,
+        "not_ready",
+        "The API did not return a contract error. Please try again.",
+        result.response.headers.get("x-request-id") ?? undefined,
+      );
+    }
     throw new ApiError(
       result.response.status,
-      result.error?.code ?? "request_failed",
-      result.error?.message ??
-        "We could not complete this request. Please try again.",
-      result.error?.request_id,
+      result.error.code,
+      result.error.message,
+      result.error.request_id,
     );
   }
+
+  if (result.data === undefined) {
+    // A successful status without a JSON body usually means a proxy or the
+    // API origin is serving something other than the NumDock contract.
+    logNonContractResponse(result.response);
+    throw new ApiError(
+      502,
+      "not_ready",
+      "The API did not return data. Please try again.",
+      result.response.headers.get("x-request-id") ?? undefined,
+    );
+  }
+
   return result.data;
 }
 
@@ -51,6 +125,8 @@ const errorKeys: Record<string, TranslationKey> = {
   rate_limited: "errors.rateLimited",
   account_unavailable: "errors.accountUnavailable",
   validation_failed: "errors.validationFailed",
+  terms_required: "errors.termsRequired",
+  invalid_rental_period: "errors.invalidRentalPeriod",
   invalid_request: "errors.invalidRequest",
   request_timeout: "errors.requestTimeout",
   not_ready: "errors.notReady",

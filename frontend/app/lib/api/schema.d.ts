@@ -439,7 +439,7 @@ export interface paths {
          *     even if fixture rows exist. Mock numbers and prices are synthetic and
          *     can only be leased and tested using authenticated development operations. No live provider is connected.
          *     Filters combine with AND. Search is a case-insensitive literal substring
-         *     over number, country name, region, and provider (not SQL wildcards).
+         *     over number, country name, region, provider, and use-case tags (not SQL wildcards).
          *     Ordering is stable with an ID tie-breaker. Total counts all matching rows.
          *     Unknown and repeated query parameters are rejected.
          */
@@ -654,6 +654,10 @@ export interface components {
             completed_orders: number;
         };
         LeasedNumber: {
+            /** @enum {integer} */
+            rental_days: 3 | 7 | 30;
+            /** Format: int64 */
+            amount_minor: number;
             id: string;
             e164: string;
             /** @enum {string} */
@@ -661,6 +665,7 @@ export interface components {
             country_code: string;
             number_type: string;
             capabilities: string[];
+            use_cases: components["schemas"]["UseCase"][];
             /** Format: int64 */
             monthly_fee_minor: number;
             /** Format: date-time */
@@ -670,6 +675,8 @@ export interface components {
             order_id: string;
         };
         WorkspaceOrder: {
+            /** @enum {integer} */
+            rental_days: 3 | 7 | 30;
             id: string;
             e164: string;
             /** @enum {string} */
@@ -718,6 +725,11 @@ export interface components {
             /** Format: int64 */
             amount_minor?: number;
             catalog_item_id?: string;
+            /**
+             * @description Required for purchases. Fixed duration in UTC days.
+             * @enum {integer}
+             */
+            rental_days?: 3 | 7 | 30;
             /** @enum {string} */
             purpose?: "customer_support" | "product_notifications" | "service_testing";
             confirmed_terms?: boolean;
@@ -725,6 +737,8 @@ export interface components {
             lease_id?: string;
             body?: string;
         };
+        /** @description Select a quoted 3, 7 or 30 day term. The server calculates and charges the catalog price for that term. Authorization confirmation is mandatory. */
+        PurchaseNumberCommand: WithRequired<components["schemas"]["WorkspaceCommand"], "catalog_item_id" | "purpose" | "confirmed_terms" | "rental_days">;
         ProviderIncoming: {
             id: string;
             lease_id: string;
@@ -760,6 +774,18 @@ export interface components {
             payment?: components["schemas"]["PaymentOrder"];
             wallet?: components["schemas"]["Wallet"];
         };
+        /** @description Development quote, prorated from the 30-day rate and rounded up to whole USD cents. */
+        RentalOption: {
+            /** @enum {integer} */
+            days: 3 | 7 | 30;
+            /** Format: int64 */
+            amount_minor: number;
+        };
+        /**
+         * @description Intended catalog scenario tag. It is not a guarantee that a third-party service will accept the number.
+         * @enum {string}
+         */
+        UseCase: "openai" | "google" | "telegram" | "whatsapp" | "discord" | "tiktok" | "amazon" | "paypal" | "uber" | "x" | "facebook" | "instagram" | "microsoft" | "apple" | "other";
         CatalogItem: {
             /** Format: uuid */
             id: string;
@@ -770,12 +796,15 @@ export interface components {
             /** @enum {string} */
             number_type: "mobile" | "local" | "toll_free";
             capabilities: ("sms" | "voice" | "mms")[];
+            /** @description Intended use-case tags. They do not guarantee third-party acceptance. */
+            use_cases: components["schemas"]["UseCase"][];
             /** @enum {string} */
             provider: "NumDock Mock";
             /** @enum {string} */
             source: "mock";
             /** @enum {string} */
             currency: "USD";
+            rental_options: components["schemas"]["RentalOption"][];
             /**
              * Format: int32
              * @description Monthly demonstration price in minor currency units (USD cents).
@@ -856,7 +885,7 @@ export interface components {
          * @example validation_failed
          * @enum {string}
          */
-        ErrorCode: "resource_limit" | "feature_disabled" | "forbidden" | "idempotency_conflict" | "inventory_unavailable" | "insufficient_balance" | "lease_inactive" | "refund_unavailable" | "release_required" | "sms_unavailable" | "validation_failed" | "invalid_request" | "unsupported_media_type" | "payload_too_large" | "csrf_failed" | "account_unavailable" | "invalid_credentials" | "unauthenticated" | "rate_limited" | "not_found" | "method_not_allowed" | "not_ready" | "request_timeout" | "internal_error";
+        ErrorCode: "resource_limit" | "feature_disabled" | "forbidden" | "idempotency_conflict" | "inventory_unavailable" | "insufficient_balance" | "lease_inactive" | "refund_unavailable" | "release_required" | "sms_unavailable" | "validation_failed" | "terms_required" | "invalid_rental_period" | "invalid_request" | "unsupported_media_type" | "payload_too_large" | "csrf_failed" | "account_unavailable" | "invalid_credentials" | "unauthenticated" | "rate_limited" | "not_found" | "method_not_allowed" | "not_ready" | "request_timeout" | "internal_error";
         Error: {
             code: components["schemas"]["ErrorCode"];
             /**
@@ -1739,7 +1768,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
+                "application/json": components["schemas"]["PurchaseNumberCommand"];
             };
         };
         responses: {
@@ -2817,6 +2846,8 @@ export interface operations {
                 country?: string;
                 number_type?: "mobile" | "local" | "toll_free";
                 capability?: "sms" | "voice" | "mms";
+                /** @description Intended use-case category. Tags do not guarantee acceptance by the named third-party service. */
+                use_case?: components["schemas"]["UseCase"];
                 q?: string;
                 sort?: "e164" | "monthly_fee_minor" | "inbound_sms_fee_micros";
                 order?: "asc" | "desc";
@@ -3454,3 +3485,6 @@ export interface operations {
         };
     };
 }
+type WithRequired<T, K extends keyof T> = T & {
+    [P in K]-?: T[P];
+};

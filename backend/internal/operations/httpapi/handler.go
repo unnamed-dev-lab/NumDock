@@ -170,6 +170,10 @@ func (h *Handler) command(kind string) http.HandlerFunc {
 			return
 		}
 		c.Kind, c.ResourceID = kind, chi.URLParam(r, "resource_id")
+		if kind == "purchase" && c.RentalDays == 0 {
+			h.fail(w, r, operations.Fail("invalid_rental_period"))
+			return
+		}
 		if len(c.ResourceID) > 128 {
 			h.fail(w, r, operations.Fail("not_found"))
 			return

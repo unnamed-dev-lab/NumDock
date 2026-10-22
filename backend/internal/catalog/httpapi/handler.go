@@ -29,14 +29,14 @@ func (h *Handler) Routes(r chi.Router) {
 }
 
 func parseFilter(q url.Values) (catalog.Filter, error) {
-	f := catalog.Filter{Country: q.Get("country"), NumberType: q.Get("number_type"), Capability: q.Get("capability"), Search: strings.TrimSpace(q.Get("q")), SortBy: "e164", SortOrder: "asc", Limit: 20}
-	allowed := map[string]bool{"country": true, "number_type": true, "capability": true, "q": true, "sort": true, "order": true, "limit": true, "offset": true}
+	f := catalog.Filter{Country: q.Get("country"), NumberType: q.Get("number_type"), Capability: q.Get("capability"), UseCase: q.Get("use_case"), Search: strings.TrimSpace(q.Get("q")), SortBy: "e164", SortOrder: "asc", Limit: 20}
+	allowed := map[string]bool{"country": true, "number_type": true, "capability": true, "use_case": true, "q": true, "sort": true, "order": true, "limit": true, "offset": true}
 	for key, values := range q {
 		if !allowed[key] || len(values) != 1 {
 			return f, errors.New("unknown or repeated query parameter")
 		}
 	}
-	for _, key := range []string{"country", "number_type", "capability"} {
+	for _, key := range []string{"country", "number_type", "capability", "use_case"} {
 		if q.Has(key) && q.Get(key) == "" {
 			return f, errors.New("filter values must not be empty")
 		}
@@ -49,6 +49,9 @@ func parseFilter(q url.Values) (catalog.Filter, error) {
 	}
 	if f.Capability != "" && f.Capability != "sms" && f.Capability != "voice" && f.Capability != "mms" {
 		return f, errors.New("invalid capability")
+	}
+	if f.UseCase != "" && !catalog.IsUseCase(f.UseCase) {
+		return f, errors.New("invalid use case")
 	}
 	if !utf8.ValidString(f.Search) || utf8.RuneCountInString(f.Search) > 100 {
 		return f, errors.New("search must contain at most 100 characters")

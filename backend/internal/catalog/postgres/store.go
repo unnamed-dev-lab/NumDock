@@ -20,17 +20,17 @@ func (s *Store) List(ctx context.Context, f catalog.Filter) ([]catalog.Item, int
 	}
 	defer tx.Rollback(ctx)
 	q := catalogdb.New(tx)
-	total, err := q.CountCatalogItems(ctx, catalogdb.CountCatalogItemsParams{Country: f.Country, NumberType: f.NumberType, Capability: f.Capability, Search: f.Search})
+	total, err := q.CountCatalogItems(ctx, catalogdb.CountCatalogItemsParams{Country: f.Country, NumberType: f.NumberType, Capability: f.Capability, UseCase: f.UseCase, Search: f.Search})
 	if err != nil {
 		return nil, 0, err
 	}
-	rows, err := q.ListCatalogItems(ctx, catalogdb.ListCatalogItemsParams{Country: f.Country, NumberType: f.NumberType, Capability: f.Capability, Search: f.Search, SortBy: f.SortBy, SortOrder: f.SortOrder, PageLimit: f.Limit, PageOffset: f.Offset})
+	rows, err := q.ListCatalogItems(ctx, catalogdb.ListCatalogItemsParams{Country: f.Country, NumberType: f.NumberType, Capability: f.Capability, UseCase: f.UseCase, Search: f.Search, SortBy: f.SortBy, SortOrder: f.SortOrder, PageLimit: f.Limit, PageOffset: f.Offset})
 	if err != nil {
 		return nil, 0, err
 	}
 	items := make([]catalog.Item, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, catalog.Item{ID: row.ID, E164: row.E164, CountryCode: row.CountryCode, CountryName: row.CountryName, Region: row.Region, NumberType: row.NumberType, Capabilities: row.Capabilities, Provider: row.Provider, Source: row.Source, Currency: row.Currency, MonthlyFeeMinor: row.MonthlyFeeMinor, InboundSMSFeeMicros: row.InboundSmsFeeMicros, Status: row.Status})
+		items = append(items, catalog.Item{ID: row.ID, E164: row.E164, CountryCode: row.CountryCode, CountryName: row.CountryName, Region: row.Region, NumberType: row.NumberType, Capabilities: row.Capabilities, UseCases: row.UseCases, Provider: row.Provider, Source: row.Source, Currency: row.Currency, MonthlyFeeMinor: row.MonthlyFeeMinor, InboundSMSFeeMicros: row.InboundSmsFeeMicros, Status: row.Status})
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return nil, 0, err

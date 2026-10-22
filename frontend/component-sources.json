@@ -7,7 +7,10 @@
     "bunx --bun shadcn@4.22.1 add badge card tabs dialog select switch separator tooltip button --yes",
     "bunx --bun shadcn@4.22.1 add @beui/not-found-stacked --overwrite --yes",
     "bunx --bun shadcn@4.22.1 add chart --yes",
-    "bunx --bun shadcn@4.22.1 add @beui/text-cascade --yes"
+    "bunx --bun shadcn@4.22.1 add @beui/text-cascade --yes",
+    "pnpm dlx shadcn add @beui/checkbox --yes",
+    "pnpm dlx shadcn@4.22.1 add \"https://magicui.design/r/number-ticker.json\" --yes",
+    "pnpm dlx shadcn@4.22.1 add skeleton --yes"
   ],
   "components": [
     {
@@ -174,6 +177,37 @@
       "files": [
         "app/components/motion/text-cascade.tsx"
       ]
+    },
+    {
+      "registry": "https://beui.dev/r/checkbox.json",
+      "command": "pnpm dlx shadcn add @beui/checkbox --yes",
+      "files": [
+        "app/components/motion/checkbox.tsx"
+      ],
+      "item": "@beui/checkbox",
+      "cli": "shadcn@4.22.1",
+      "installedOn": "2026-10-22"
+    },
+    {
+      "registry": "https://magicui.design/r/number-ticker.json",
+      "command": "pnpm dlx shadcn@4.22.1 add \"https://magicui.design/r/number-ticker.json\" --yes",
+      "files": [
+        "app/components/ui/number-ticker.tsx"
+      ],
+      "item": "magicui/number-ticker",
+      "cli": "shadcn@4.22.1",
+      "installedOn": "2026-10-22"
+    },
+    {
+      "registry": "https://ui.shadcn.com/r/styles/base-vega/skeleton.json",
+      "command": "pnpm dlx shadcn@4.22.1 add skeleton --yes",
+      "files": [
+        "app/components/ui/skeleton.tsx"
+      ],
+      "item": "@shadcn/skeleton",
+      "base": "base-ui",
+      "cli": "shadcn@4.22.1",
+      "installedOn": "2026-10-22"
     }
   ]
 }

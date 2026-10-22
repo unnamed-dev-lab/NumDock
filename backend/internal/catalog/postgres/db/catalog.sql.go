@@ -14,13 +14,15 @@ SELECT count(*) FROM catalog_items
 WHERE status='available' AND ($1::text = '' OR country_code = $1)
   AND ($2::text = '' OR number_type = $2)
   AND ($3::text = '' OR $3 = ANY(capabilities))
-  AND ($4::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower($4)) > 0)
+  AND ($4::text = '' OR use_cases @> ARRAY[$4]::text[])
+  AND ($5::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider || ' ' || array_to_string(use_cases, ' ')), lower($5)) > 0)
 `
 
 type CountCatalogItemsParams struct {
 	Country    string
 	NumberType string
 	Capability string
+	UseCase    string
 	Search     string
 }
 
@@ -29,6 +31,7 @@ func (q *Queries) CountCatalogItems(ctx context.Context, arg CountCatalogItemsPa
 		arg.Country,
 		arg.NumberType,
 		arg.Capability,
+		arg.UseCase,
 		arg.Search,
 	)
 	var count int64
@@ -37,26 +40,28 @@ func (q *Queries) CountCatalogItems(ctx context.Context, arg CountCatalogItemsPa
 }
 
 const listCatalogItems = `-- name: ListCatalogItems :many
-SELECT id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status, created_at FROM catalog_items
+SELECT id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status, created_at, use_cases FROM catalog_items
 WHERE status='available' AND ($1::text = '' OR country_code = $1)
   AND ($2::text = '' OR number_type = $2)
   AND ($3::text = '' OR $3 = ANY(capabilities))
-  AND ($4::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider), lower($4)) > 0)
+  AND ($4::text = '' OR use_cases @> ARRAY[$4]::text[])
+  AND ($5::text = '' OR strpos(lower(e164 || ' ' || country_name || ' ' || region || ' ' || provider || ' ' || array_to_string(use_cases, ' ')), lower($5)) > 0)
 ORDER BY
-  CASE WHEN $5::text = 'e164' AND $6::text = 'asc' THEN e164 END ASC,
-  CASE WHEN $5::text = 'e164' AND $6::text = 'desc' THEN e164 END DESC,
-  CASE WHEN $5::text = 'monthly_fee_minor' AND $6::text = 'asc' THEN monthly_fee_minor END ASC,
-  CASE WHEN $5::text = 'monthly_fee_minor' AND $6::text = 'desc' THEN monthly_fee_minor END DESC,
-  CASE WHEN $5::text = 'inbound_sms_fee_micros' AND $6::text = 'asc' THEN inbound_sms_fee_micros END ASC,
-  CASE WHEN $5::text = 'inbound_sms_fee_micros' AND $6::text = 'desc' THEN inbound_sms_fee_micros END DESC,
+  CASE WHEN $6::text = 'e164' AND $7::text = 'asc' THEN e164 END ASC,
+  CASE WHEN $6::text = 'e164' AND $7::text = 'desc' THEN e164 END DESC,
+  CASE WHEN $6::text = 'monthly_fee_minor' AND $7::text = 'asc' THEN monthly_fee_minor END ASC,
+  CASE WHEN $6::text = 'monthly_fee_minor' AND $7::text = 'desc' THEN monthly_fee_minor END DESC,
+  CASE WHEN $6::text = 'inbound_sms_fee_micros' AND $7::text = 'asc' THEN inbound_sms_fee_micros END ASC,
+  CASE WHEN $6::text = 'inbound_sms_fee_micros' AND $7::text = 'desc' THEN inbound_sms_fee_micros END DESC,
   id ASC
-LIMIT $8 OFFSET $7
+LIMIT $9 OFFSET $8
 `
 
 type ListCatalogItemsParams struct {
 	Country    string
 	NumberType string
 	Capability string
+	UseCase    string
 	Search     string
 	SortBy     string
 	SortOrder  string
@@ -69,6 +74,7 @@ func (q *Queries) ListCatalogItems(ctx context.Context, arg ListCatalogItemsPara
 		arg.Country,
 		arg.NumberType,
 		arg.Capability,
+		arg.UseCase,
 		arg.Search,
 		arg.SortBy,
 		arg.SortOrder,
@@ -97,6 +103,7 @@ func (q *Queries) ListCatalogItems(ctx context.Context, arg ListCatalogItemsPara
 			&i.InboundSmsFeeMicros,
 			&i.Status,
 			&i.CreatedAt,
+			&i.UseCases,
 		); err != nil {
 			return nil, err
 		}

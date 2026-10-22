@@ -25,6 +25,23 @@ var accounts = []account{
 	{"d1000000-0000-4000-8000-000000000004", "isolated@numdock.test", "Isolated Owner", IsolatedWorkspaceID, "owner"},
 }
 
+// Synthetic catalog tags. They describe intended scenarios only and are not
+// provider compatibility or third-party acceptance guarantees.
+var seededUseCases = [][]string{
+	{"openai", "google", "microsoft"},
+	{"telegram", "whatsapp", "discord"},
+	{"google", "amazon", "paypal"},
+	{"openai", "telegram", "x"},
+	{"facebook", "instagram", "whatsapp"},
+	{"tiktok", "discord", "google"},
+	{"amazon", "uber", "paypal"},
+	{"openai", "google", "telegram"},
+	{"apple", "microsoft", "google"},
+	{"telegram", "whatsapp"},
+	{"openai", "google", "amazon"},
+	{"other"},
+}
+
 // Run is atomic, serialized across processes, and does not reset passwords,
 // memberships or edited fixtures on reruns. It creates no authenticated sessions.
 func Run(ctx context.Context, pool *pgxpool.Pool, environment, password string) error {
@@ -77,7 +94,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool, environment, password string) 
 		if i%3 == 1 {
 			capabilities = []string{"voice"}
 		}
-		err := q.SeedCatalogItem(ctx, seeddb.SeedCatalogItemParams{ID: fmt.Sprintf("d2000000-0000-4000-8000-%012d", i+1), E164: fmt.Sprintf("%s%02d", prefix, i), CountryCode: country, CountryName: name, Region: region, NumberType: kind, Capabilities: capabilities, MonthlyFeeMinor: int32(200 + i*25), InboundSmsFeeMicros: int32(7500 + i*100)})
+		err := q.SeedCatalogItem(ctx, seeddb.SeedCatalogItemParams{ID: fmt.Sprintf("d2000000-0000-4000-8000-%012d", i+1), E164: fmt.Sprintf("%s%02d", prefix, i), CountryCode: country, CountryName: name, Region: region, NumberType: kind, Capabilities: capabilities, UseCases: seededUseCases[i%len(seededUseCases)], MonthlyFeeMinor: int32(200 + i*25), InboundSmsFeeMicros: int32(7500 + i*100)})
 		if err != nil {
 			return errors.New("seed catalog conflicts with existing data; no changes committed")
 		}

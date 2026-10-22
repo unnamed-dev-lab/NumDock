@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: NumDock API
-  version: 0.9.0
+  version: 0.11.0
   description: |
     Identity, organization, and development catalog API for NumDock.
 
@@ -775,7 +775,7 @@ paths:
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/WorkspaceCommand"
+                "$ref": "#/components/schemas/PurchaseNumberCommand"
               }
             }
           }
@@ -2079,7 +2079,7 @@ paths:
         even if fixture rows exist. Mock numbers and prices are synthetic and
         can only be leased and tested using authenticated development operations. No live provider is connected.
         Filters combine with AND. Search is a case-insensitive literal substring
-        over number, country name, region, and provider (not SQL wildcards).
+        over number, country name, region, provider, and use-case tags (not SQL wildcards).
         Ordering is stable with an ID tie-breaker. Total counts all matching rows.
         Unknown and repeated query parameters are rejected.
       security: []
@@ -2096,6 +2096,10 @@ paths:
         - name: capability
           in: query
           schema: { type: string, enum: [sms, voice, mms] }
+        - name: use_case
+          in: query
+          schema: { $ref: "#/components/schemas/UseCase" }
+          description: Intended use-case category. Tags do not guarantee acceptance by the named third-party service.
         - name: q
           in: query
           schema: { type: string, maxLength: 100 }
@@ -3239,13 +3243,18 @@ components:
             "country_code",
             "number_type",
             "capabilities",
+            "use_cases",
             "monthly_fee_minor",
+            "rental_days",
+            "amount_minor",
             "started_at",
             "expires_at",
             "order_id",
           ],
         "properties":
           {
+            "rental_days": { "type": "integer", "enum": [3,7,30] },
+            "amount_minor": { "type": "integer", "format": "int64" },
             "id": { "type": "string" },
             "e164": { "type": "string" },
             "status":
@@ -3253,6 +3262,12 @@ components:
             "country_code": { "type": "string" },
             "number_type": { "type": "string" },
             "capabilities": { "type": "array", "items": { "type": "string" } },
+            "use_cases":
+              {
+                "type": "array",
+                "minItems": 1,
+                "items": { "$ref": "#/components/schemas/UseCase" },
+              },
             "monthly_fee_minor": { "type": "integer", "format": "int64" },
             "started_at": { "type": "string", "format": "date-time" },
             "expires_at": { "type": "string", "format": "date-time" },
@@ -3270,11 +3285,13 @@ components:
             "status",
             "purpose",
             "amount_minor",
+            "rental_days",
             "failure_code",
             "created_at",
           ],
         "properties":
           {
+            "rental_days": { "type": "integer", "enum": [3,7,30] },
             "id": { "type": "string" },
             "e164": { "type": "string" },
             "status":
@@ -3358,6 +3375,7 @@ components:
           {
             "amount_minor": { "type": "integer", "format": "int64" },
             "catalog_item_id": { "type": "string" },
+            "rental_days": { "type": "integer", "enum": [3,7,30], "description": "Required for purchases. Fixed duration in UTC days." },
             "purpose":
               {
                 "type": "string",
@@ -3374,6 +3392,11 @@ components:
             "body": { "type": "string" },
           },
       }
+    PurchaseNumberCommand:
+      allOf:
+        - $ref: "#/components/schemas/WorkspaceCommand"
+      required: [catalog_item_id, purpose, confirmed_terms, rental_days]
+      description: Select a quoted 3, 7 or 30 day term. The server calculates and charges the catalog price for that term. Authorization confirmation is mandatory.
     ProviderIncoming:
       {
         "type": "object",
@@ -3422,6 +3445,35 @@ components:
             "wallet": { "$ref": "#/components/schemas/Wallet" },
           },
       }
+    RentalOption:
+      type: object
+      additionalProperties: false
+      required: [days, amount_minor]
+      properties:
+        days: {type: integer, enum: [3, 7, 30]}
+        amount_minor: {type: integer, format: int64, minimum: 0}
+      description: Development quote, prorated from the 30-day rate and rounded up to whole USD cents.
+    UseCase:
+      type: string
+      enum:
+        [
+          openai,
+          google,
+          telegram,
+          whatsapp,
+          discord,
+          tiktok,
+          amazon,
+          paypal,
+          uber,
+          x,
+          facebook,
+          instagram,
+          microsoft,
+          apple,
+          other,
+        ]
+      description: Intended catalog scenario tag. It is not a guarantee that a third-party service will accept the number.
     CatalogItem:
       type: object
       additionalProperties: false
@@ -3434,10 +3486,12 @@ components:
           region,
           number_type,
           capabilities,
+          use_cases,
           provider,
           source,
           currency,
           monthly_fee_minor,
+          rental_options,
           inbound_sms_fee_micros,
           status,
         ]
@@ -3452,9 +3506,19 @@ components:
           type: array
           minItems: 1
           items: { type: string, enum: [sms, voice, mms] }
+        use_cases:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/UseCase" }
+          description: Intended use-case tags. They do not guarantee third-party acceptance.
         provider: { type: string, enum: [NumDock Mock] }
         source: { type: string, enum: [mock] }
         currency: { type: string, enum: [USD] }
+        rental_options:
+          type: array
+          minItems: 3
+          maxItems: 3
+          items: { $ref: '#/components/schemas/RentalOption' }
         monthly_fee_minor:
           type: integer
           format: int32
@@ -3577,6 +3641,8 @@ components:
         - release_required
         - sms_unavailable
         - validation_failed
+        - terms_required
+        - invalid_rental_period
         - invalid_request
         - unsupported_media_type
         - payload_too_large

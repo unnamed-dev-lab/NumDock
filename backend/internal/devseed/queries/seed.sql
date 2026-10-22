@@ -16,9 +16,9 @@ INSERT INTO memberships (user_id, organization_id, role) VALUES ($1, $2, $3)
 ON CONFLICT (user_id, organization_id) DO NOTHING;
 
 -- name: SeedCatalogItem :exec
-INSERT INTO catalog_items (id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status)
-VALUES ($1, $2, $3, $4, $5, $6, $7, 'NumDock Mock', 'mock', 'USD', $8, $9, 'available')
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO catalog_items (id, e164, country_code, country_name, region, number_type, capabilities, use_cases, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NumDock Mock', 'mock', 'USD', $9, $10, 'available')
+ON CONFLICT (id) DO UPDATE SET use_cases = EXCLUDED.use_cases;
 
 -- name: SeedOverviewDay :exec
 INSERT INTO development_overview_daily (organization_id, day, active_numbers, messages_received, messages_failed, orders_completed, spend_minor)

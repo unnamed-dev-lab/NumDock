@@ -76,6 +76,96 @@ test("visitors browse database numbers and prices without a session", async ({
   ).toBeVisible();
 });
 
+test("visitors can filter the catalog by intended use case", async ({ page }) => {
+  await page.goto("/?use_case=openai");
+  const catalog = page.getByRole("region", { name: "Catalog", exact: true });
+  const useCase = catalog.getByRole("combobox", {
+    name: "Use case",
+    exact: true,
+  });
+  await expect(useCase).toContainText("OpenAI");
+  await expect(page).toHaveURL(/use_case=openai/);
+  await expect(
+    catalog.getByRole("columnheader", {
+      name: "Intended use cases",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(catalog.locator("tbody tr").first()).toContainText("OpenAI");
+  await expect(
+    catalog.getByText("Use-case tags describe intended scenarios only.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await useCase.click();
+  await page.getByRole("option", { name: "Telegram", exact: true }).click();
+  await expect(page).toHaveURL(/use_case=telegram/);
+  await expect(catalog.locator("tbody tr").first()).toContainText("Telegram");
+});
+
+test("homepage search and quick use-case entry update the catalog", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const catalog = page.getByRole("region", { name: "Catalog", exact: true });
+  const heroSearch = page.getByRole("searchbox", {
+    name: "Search the catalog",
+    exact: true,
+  });
+  await heroSearch.fill("Toronto");
+  await page.getByRole("button", { name: "Search numbers", exact: true }).click();
+  await expect(page).toHaveURL(/q=Toronto/);
+  await expect(catalog.getByRole("searchbox")).toHaveValue("Toronto");
+  const openai = page.getByRole("link", { name: "OpenAI", exact: true });
+  await openai.focus();
+  await expect(openai).toBeFocused();
+  await openai.click();
+  await expect(page).toHaveURL(/use_case=openai/);
+  await expect(page).not.toHaveURL(/q=Toronto/);
+  await expect(
+    catalog.getByRole("combobox", { name: "Use case", exact: true }),
+  ).toContainText("OpenAI");
+  const openaiCatalog = await (
+    await page.request.get("/v1/catalog/numbers?use_case=openai&limit=10")
+  ).json();
+  const expectedFeatured =
+    openaiCatalog.items.find((item: { capabilities: string[] }) =>
+      item.capabilities.includes("sms"),
+    ) ?? openaiCatalog.items[0];
+  const preview = page.getByRole("region", {
+    name: "Catalog preview",
+    exact: true,
+  });
+  await expect(preview).toContainText(expectedFeatured.e164);
+  await expect(preview).toContainText(String(openaiCatalog.total));
+});
+
+test("a non-JSON catalog response shows a retryable error", async ({ page }) => {
+  await page.route("**/v1/catalog/numbers*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: "<!doctype html><title>Not the NumDock API</title>",
+    }),
+  );
+  await page.goto("/?use_case=openai");
+  const catalog = page.getByRole("region", { name: "Catalog", exact: true });
+  await catalog
+    .getByRole("combobox", { name: "Country/Region:", exact: true })
+    .click();
+  await page.getByRole("option", { name: "Canada (CA)", exact: true }).click();
+  await expect(catalog.getByRole("alert")).toContainText(
+    "Unable to load the catalog",
+  );
+  await expect(catalog.getByRole("alert")).toContainText(
+    "Service temporarily unavailable",
+  );
+  await expect(catalog.getByRole("alert")).toContainText("Development check:");
+  await expect(
+    catalog.getByRole("button", { name: "Try again", exact: true }),
+  ).toBeVisible();
+});
+
 test("a selected public number survives registration and can be leased", async ({
   page,
 }) => {
@@ -138,8 +228,20 @@ test("a selected public number survives registration and can be leased", async (
     .click();
   dialog = page.getByRole("dialog");
   await expect(dialog).toContainText(number);
-  await dialog.getByRole("switch", { name: /I confirm this number/ }).check();
-  await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Confirm lease", exact: true }),
+  ).toBeDisabled();
+  await dialog
+    .getByRole("combobox", { name: "Rental period", exact: true })
+    .click();
+  await page.getByRole("option", { name: /^30 days/ }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Confirm lease", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: /I confirm this number/ }).check();
+  await dialog
+    .getByRole("button", { name: "Confirm lease", exact: true })
+    .click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole("tab", { name: "Your numbers", exact: true }),

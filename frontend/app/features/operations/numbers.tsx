@@ -1,4 +1,7 @@
 import { useMemo } from "react";
+import type { VirtualNumberCatalogItem } from "@/features/catalog/types";
+import { catalogUseCaseLabels } from "@/features/catalog/use-cases";
+import { Badge } from "@/components/ui/badge";
 import { useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
@@ -13,16 +16,29 @@ import type { ResourceItems } from "./runtime";
 export function PurchaseNumber({
   id,
   e164,
-  price,
+  options,
 }: {
   id: string;
   e164: string;
-  price: number;
+  options: VirtualNumberCatalogItem["rental_options"];
 }) {
   const { t } = useTranslation();
   const { money } = useFormat();
   const [, setParams] = useSearchParams();
   const fields: FormField[] = [
+    {
+      name: "rental_days",
+      label: "workspace.rentalPeriod",
+      type: "select",
+      hint: "workspace.chooseRentalPeriod",
+      options: options.map((option) => ({
+        value: String(option.days),
+        label: t("workspace.rentalOption", {
+          days: option.days,
+          price: money(option.amount_minor),
+        }),
+      })),
+    },
     {
       name: "purpose",
       label: "workspace.opsPurpose",
@@ -37,7 +53,13 @@ export function PurchaseNumber({
         { value: "service_testing", label: t("workspace.opsTesting") },
       ],
     },
-    { name: "terms", label: "workspace.opsTerms", type: "switch" },
+    {
+      name: "terms",
+      label: "workspace.opsTerms",
+      type: "checkbox",
+      required: true,
+      hint: "workspace.confirmUseHint",
+    },
   ];
   return (
     <ActionDialog
@@ -45,7 +67,6 @@ export function PurchaseNumber({
       title={t("workspace.opsPurchase")}
       description={t("workspace.opsPurchaseDescription", {
         number: e164,
-        price: money(price),
       })}
       fields={fields}
       onComplete={() =>
@@ -63,6 +84,7 @@ export function PurchaseNumber({
         purpose: String(v.purpose) as
           "customer_support" | "product_notifications" | "service_testing",
         confirmed_terms: !!v.terms,
+        rental_days: Number(v.rental_days) as 3 | 7 | 30,
         simulate_failure: false,
       })}
     />
@@ -87,14 +109,33 @@ export function NumbersTable() {
         ),
       },
       {
+        accessorKey: "use_cases",
+        header: t("workspace.useCases"),
+        cell: ({ row }) => (
+          <div className="flex flex-wrap gap-1.5">
+            {row.original.use_cases.map((useCase) => (
+              <Badge key={useCase} variant="outline">
+                {t(catalogUseCaseLabels[useCase] ?? "workspace.useCaseOther")}
+              </Badge>
+            ))}
+          </div>
+        ),
+      },
+      {
         accessorKey: "status",
         header: t("workspace.opsStatus"),
         cell: ({ row }) => <State value={row.original.status} />,
       },
       {
-        accessorKey: "monthly_fee_minor",
+        accessorKey: "amount_minor",
         header: t("workspace.opsPrice"),
-        cell: ({ row }) => money(row.original.monthly_fee_minor),
+        cell: ({ row }) => money(row.original.amount_minor),
+      },
+      {
+        accessorKey: "rental_days",
+        header: t("workspace.rentalPeriod"),
+        cell: ({ row }) =>
+          t("workspace.rentalDays", { days: row.original.rental_days }),
       },
       {
         accessorKey: "expires_at",

@@ -26,6 +26,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/motion/checkbox";
 import { DataTable } from "@/components/data-table/data-table";
 import { StatusBadge, InlineNote } from "@/features/workspace/workspace-ui";
 import { AlertCircle, Check } from "lucide-react";
@@ -120,8 +121,10 @@ export function State({ value }: { value: string }) {
 export type FormField = {
   name: string;
   label: TranslationKey;
-  type?: "number" | "money" | "switch" | "select";
+  type?: "number" | "money" | "switch" | "checkbox" | "select";
   default?: string | boolean;
+  required?: boolean;
+  hint?: TranslationKey;
   options?: { value: string; label: string }[];
   min?: number;
   max?: number;
@@ -154,14 +157,20 @@ export function ActionDialog({
   const directFingerprint = useRef("");
   const key = useRef("");
   const running = useRef(false);
+  const submittedBody = useRef("");
   const immediate = action === "simulate";
   const [openedDescription, setOpenedDescription] = useState(description);
   const schema = z.object(
     Object.fromEntries(
       fields.map((f) => [
         f.name,
-        f.type === "switch"
-          ? z.boolean()
+        f.type === "switch" || f.type === "checkbox"
+          ? z
+              .boolean()
+              .refine(
+                (v) => !f.required || v,
+                f.hint ? t(f.hint) : t("workspace.opsRequired"),
+              )
           : z
               .string()
               .min(1, t("workspace.opsRequired"))
@@ -188,10 +197,12 @@ export function ActionDialog({
   );
   const form = useForm<Record<string, string | boolean>>({
     resolver: zodResolver(schema),
+    mode: "onChange",
     defaultValues: Object.fromEntries(
       fields.map((f) => [
         f.name,
-        f.default ?? (f.type === "switch" ? false : ""),
+        f.default ??
+          (f.type === "switch" || f.type === "checkbox" ? false : ""),
       ]),
     ),
   });
@@ -209,10 +220,20 @@ export function ActionDialog({
   const submitAction = (values: Record<string, string | boolean>) => {
     if (running.current) return;
     running.current = true;
+    const body = target.current.build(values);
+    const fingerprint = JSON.stringify([
+      target.current.org,
+      action,
+      target.current.id,
+      body,
+    ]);
+    if (submittedBody.current && submittedBody.current !== fingerprint)
+      key.current = crypto.randomUUID();
+    submittedBody.current = fingerprint;
     mutation.mutate({
       org: target.current.org!,
       action,
-      body: target.current.build(values),
+      body,
       key: key.current,
       id: target.current.id,
     });
@@ -244,6 +265,7 @@ export function ActionDialog({
             key.current = crypto.randomUUID();
           directFingerprint.current = fingerprint;
           form.reset();
+          submittedBody.current = "";
           mutation.reset();
           setOpenedDescription(description);
           target.current = {
@@ -319,7 +341,23 @@ export function ActionDialog({
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <div className="space-y-1.5">
-                      {f.type === "switch" ? (
+                      {f.type === "checkbox" ? (
+                        <Checkbox
+                          checked={!!field.value}
+                          onCheckedChange={(value) => {
+                            field.onChange(value);
+                            if (mutation.isError) mutation.reset();
+                          }}
+                          disabled={mutation.isPending}
+                          label={t(f.label)}
+                          aria-describedby={
+                            f.hint && !field.value
+                              ? "ops-" + f.name + "-hint"
+                              : undefined
+                          }
+                          className="min-h-11 items-center"
+                        />
+                      ) : f.type === "switch" ? (
                         <label className="flex items-start gap-3 text-sm">
                           <Switch
                             checked={!!field.value}
@@ -338,10 +376,19 @@ export function ActionDialog({
                           </label>
                           <Select
                             value={String(field.value)}
-                            onValueChange={field.onChange}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (mutation.isError) mutation.reset();
+                            }}
+                            disabled={mutation.isPending}
                             items={f.options}
                           >
                             <SelectTrigger
+                              aria-describedby={
+                                f.hint && !field.value
+                                  ? "ops-" + f.name + "-hint"
+                                  : undefined
+                              }
                               id={`ops-${f.name}`}
                               className="w-full"
                             >
@@ -369,7 +416,16 @@ export function ActionDialog({
                           error={fieldState.error?.message}
                         />
                       )}
+                      {f.hint && !field.value ? (
+                        <p
+                          id={"ops-" + f.name + "-hint"}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {t(f.hint)}
+                        </p>
+                      ) : null}
                       {fieldState.error &&
+                      !f.hint &&
                       f.type !== undefined &&
                       f.type !== "number" &&
                       f.type !== "money" ? (
@@ -395,11 +451,19 @@ export function ActionDialog({
                 >
                   {t("common.cancel")}
                 </Button>
-                <Button type="submit" disabled={mutation.isPending}>
+                <Button
+                  type="submit"
+                  disabled={
+                    mutation.isPending ||
+                    (action === "purchase" && !form.formState.isValid)
+                  }
+                >
                   {t(
                     mutation.isPending
                       ? "workspace.opsWorking"
-                      : "workspace.opsConfirm",
+                      : action === "purchase"
+                        ? "workspace.confirmLease"
+                        : "workspace.opsConfirm",
                   )}
                 </Button>
               </DialogFooter>

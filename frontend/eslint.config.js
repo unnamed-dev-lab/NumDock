@@ -17,7 +17,7 @@ export default tseslint.config(
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
   {
     files: ["app/**/*.{ts,tsx}"],
-    ignores: ["app/hooks/api/**"],
+    ignores: ["app/hooks/api/**", "app/lib/api/**"],
     rules: {
       "no-restricted-imports": [
         "error",
@@ -38,7 +38,25 @@ export default tseslint.config(
               message:
                 "Declare API queries, mutations, keys and cache effects in app/hooks/api.",
             },
+            {
+              name: "@/lib/api/client",
+              importNames: ["api", "unwrap", "csrfHeaders"],
+              message:
+                "Use app/hooks/api for browser data and app/lib/api/server for loaders.",
+            },
+            {
+              name: "openapi-fetch",
+              message: "Create API clients in app/lib/api.",
+            },
           ],
+        },
+      ],
+      "no-restricted-globals": [
+        "error",
+        {
+          name: "fetch",
+          message:
+            "Use app/hooks/api for browser data and app/lib/api/server for loaders.",
         },
       ],
     },

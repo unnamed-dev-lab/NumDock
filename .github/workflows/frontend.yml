@@ -1,0 +1,151 @@
+name: frontend
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm typecheck
+
+      - name: Lint and policy checks
+        run: pnpm lint
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Mock API UI integration tests
+        run: pnpm test:e2e:mock
+
+      - name: Build
+        run: pnpm build
+
+  real-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: test
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: numdock
+          POSTGRES_PASSWORD: numdock
+          POSTGRES_DB: numdock
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U numdock -d numdock"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      APP_ENV: development
+      DATABASE_URL: postgres://numdock:numdock@127.0.0.1:5432/numdock?sslmode=disable
+      APP_ORIGIN: http://localhost:3000
+      COOKIE_SECURE: "false"
+      HTTP_ADDR: 127.0.0.1:8080
+      DEV_SEED_PASSWORD: development test passphrase
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate development encryption key
+        run: echo "DATA_ENCRYPTION_KEY=$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+
+      - name: Migrate and seed PostgreSQL
+        working-directory: backend
+        run: |
+          go run ./cmd/api -migrate
+          go run ./cmd/api -seed
+
+      - name: Start API
+        working-directory: backend
+        run: |
+          nohup go run ./cmd/api > /tmp/numdock-api.log 2>&1 &
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/numdock-api.log
+          exit 1
+
+      - name: Write development seed password
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.local"
+          printf '%s' "$DEV_SEED_PASSWORD" > "$GITHUB_WORKSPACE/.local/dev-seed-password"
+
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Real backend Playwright tests
+        env:
+          API_INTERNAL_URL: http://127.0.0.1:8080
+          PLAYWRIGHT_PORT: "3000"
+        run: pnpm test:e2e

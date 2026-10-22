@@ -1,14 +1,13 @@
 import { useSearchParams } from "react-router";
-import type { paths } from "@/lib/api/schema";
+import type { CatalogQuery } from "@/hooks/api/catalog";
+import { isCatalogUseCase } from "./use-cases";
 
-export type CatalogQuery = NonNullable<
-  paths["/v1/catalog/numbers"]["get"]["parameters"]["query"]
->;
 const filterKeys = [
   "q",
   "country",
   "number_type",
   "capability",
+  "use_case",
   "sort",
   "order",
   "limit",
@@ -31,6 +30,7 @@ function integer(
 
 export function parseCatalogParams(params: URLSearchParams): CatalogQuery {
   const country = params.get("country") ?? "";
+  const useCase = params.get("use_case");
   return {
     q: Array.from(params.get("q") ?? "")
       .slice(0, 100)
@@ -48,6 +48,7 @@ export function parseCatalogParams(params: URLSearchParams): CatalogQuery {
         ["sms", "voice", "mms", ""] as const,
         "",
       ) || undefined,
+    use_case: isCatalogUseCase(useCase) ? useCase : undefined,
     sort: choose(
       params.get("sort"),
       ["e164", "monthly_fee_minor", "inbound_sms_fee_micros"] as const,

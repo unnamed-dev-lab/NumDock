@@ -3,12 +3,13 @@ import { useEffect, useMemo } from "react";
 import { Navigate, useNavigate } from "react-router";
 import { useCatalogNumbers, type CatalogInitial } from "@/hooks/api/catalog";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, LoaderCircle } from "lucide-react";
+import { AlertCircle, FlaskConical } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/motion/button/base";
 import { EmptyState } from "@/features/workspace/workspace-ui";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { getCatalogColumns } from "./columns";
+import { CatalogSkeleton } from "./catalog-skeleton";
 import { CatalogToolbar } from "./catalog-toolbar";
 import { useCatalogParams } from "./use-catalog-params";
 
@@ -35,7 +36,10 @@ export function CatalogView({
           row,
         }: {
           row: {
-            original: { id: string; e164: string; monthly_fee_minor: number };
+            original: Pick<
+              import("./types").VirtualNumberCatalogItem,
+              "id" | "e164" | "rental_options"
+            >;
           };
         }) =>
           publicBrowsing ? (
@@ -56,7 +60,7 @@ export function CatalogView({
             <PurchaseNumber
               id={row.original.id}
               e164={row.original.e164}
-              price={row.original.monthly_fee_minor}
+              options={row.original.rental_options}
             />
           ),
       },
@@ -84,6 +88,9 @@ export function CatalogView({
   ]);
   if (catalog.error instanceof ApiError && catalog.error.status === 401)
     return <Navigate to="/login" replace />;
+  const serviceUnavailable =
+    catalog.error instanceof ApiError &&
+    (catalog.error.code === "not_ready" || catalog.error.status >= 500);
   return (
     <section
       className="space-y-5"
@@ -91,35 +98,38 @@ export function CatalogView({
       aria-busy={catalog.isFetching}
     >
       <CatalogToolbar {...filters} />
+      {catalog.data?.mode === "mock" ? (
+        <p className="text-xs leading-5 text-muted-foreground">
+          {t("workspace.useCaseDisclaimer")}
+        </p>
+      ) : null}
       {publicBrowsing && catalog.data?.mode === "mock" ? (
         <p className="text-xs text-muted-foreground">
           {t("home.developmentCatalog")}
         </p>
       ) : null}
       {catalog.isPending ? (
-        <p
-          role="status"
-          className="flex items-center gap-2 py-8 text-sm text-muted-foreground"
-        >
-          <LoaderCircle
-            className="size-4 animate-spin motion-reduce:animate-none"
-            aria-hidden="true"
-          />
-          {t("workspace.catalogLoading")}
-        </p>
+        <CatalogSkeleton label={t("workspace.catalogLoading")} />
       ) : catalog.isError ? (
-        <div
-          role="alert"
-          className="space-y-3 rounded-md border border-destructive/30 p-4 text-sm text-destructive"
-        >
-          <p>{errorMessage(catalog.error, t)}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void catalog.refetch()}
+        <div role="alert">
+          <EmptyState
+            icon={AlertCircle}
+            title={t("workspace.catalogErrorTitle")}
+            description={errorMessage(catalog.error, t)}
           >
-            {t("workspace.tryAgain")}
-          </Button>
+            {import.meta.env.DEV && serviceUnavailable ? (
+              <p className="mb-3 text-xs leading-5 text-muted-foreground">
+                {t("workspace.catalogErrorDevHint")}
+              </p>
+            ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void catalog.refetch()}
+            >
+              {t("workspace.tryAgain")}
+            </Button>
+          </EmptyState>
         </div>
       ) : catalog.data.mode === "disabled" ? (
         <EmptyState

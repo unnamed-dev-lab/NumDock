@@ -92,7 +92,7 @@ func (q *Queries) CreateLease(ctx context.Context, arg CreateLeaseParams) (Lease
 }
 
 const createOrderWithID = `-- name: CreateOrderWithID :one
-INSERT INTO orders(id,organization_id,user_id,catalog_item_id,status,purpose,amount_minor,failure_code) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, organization_id, user_id, catalog_item_id, status, purpose, amount_minor, currency, failure_code, source, created_at
+INSERT INTO orders(id,organization_id,user_id,catalog_item_id,status,purpose,amount_minor,failure_code,rental_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id, organization_id, user_id, catalog_item_id, status, purpose, amount_minor, currency, failure_code, source, created_at, rental_days
 `
 
 type CreateOrderWithIDParams struct {
@@ -104,6 +104,7 @@ type CreateOrderWithIDParams struct {
 	Purpose        string
 	AmountMinor    int64
 	FailureCode    string
+	RentalDays     int32
 }
 
 func (q *Queries) CreateOrderWithID(ctx context.Context, arg CreateOrderWithIDParams) (Order, error) {
@@ -116,6 +117,7 @@ func (q *Queries) CreateOrderWithID(ctx context.Context, arg CreateOrderWithIDPa
 		arg.Purpose,
 		arg.AmountMinor,
 		arg.FailureCode,
+		arg.RentalDays,
 	)
 	var i Order
 	err := row.Scan(
@@ -130,6 +132,7 @@ func (q *Queries) CreateOrderWithID(ctx context.Context, arg CreateOrderWithIDPa
 		&i.FailureCode,
 		&i.Source,
 		&i.CreatedAt,
+		&i.RentalDays,
 	)
 	return i, err
 }
@@ -230,8 +233,8 @@ func (q *Queries) ListLedger(ctx context.Context, arg ListLedgerParams) ([]Ledge
 }
 
 const listNumbers = `-- name: ListNumbers :many
-SELECT l.id,l.status,l.started_at,l.expires_at,l.ended_at,l.catalog_item_id,l.order_id,c.e164,c.country_code,c.number_type,c.capabilities,c.monthly_fee_minor
-FROM leases l JOIN catalog_items c ON c.id=l.catalog_item_id
+SELECT l.id,l.status,l.started_at,l.expires_at,l.ended_at,l.catalog_item_id,l.order_id,c.e164,c.country_code,c.number_type,c.capabilities,c.use_cases,c.monthly_fee_minor,o.rental_days,o.amount_minor
+FROM leases l JOIN catalog_items c ON c.id=l.catalog_item_id JOIN orders o ON o.id=l.order_id
 WHERE l.organization_id=$1
 AND ($2::text='' OR l.status=$2)
 AND ($3::text='' OR strpos(c.e164,$3)>0)
@@ -258,7 +261,10 @@ type ListNumbersRow struct {
 	CountryCode     string
 	NumberType      string
 	Capabilities    []string
+	UseCases        []string
 	MonthlyFeeMinor int32
+	RentalDays      int32
+	AmountMinor     int64
 }
 
 func (q *Queries) ListNumbers(ctx context.Context, arg ListNumbersParams) ([]ListNumbersRow, error) {
@@ -288,7 +294,10 @@ func (q *Queries) ListNumbers(ctx context.Context, arg ListNumbersParams) ([]Lis
 			&i.CountryCode,
 			&i.NumberType,
 			&i.Capabilities,
+			&i.UseCases,
 			&i.MonthlyFeeMinor,
+			&i.RentalDays,
+			&i.AmountMinor,
 		); err != nil {
 			return nil, err
 		}
@@ -301,7 +310,7 @@ func (q *Queries) ListNumbers(ctx context.Context, arg ListNumbersParams) ([]Lis
 }
 
 const listOrders = `-- name: ListOrders :many
-SELECT o.id, o.organization_id, o.user_id, o.catalog_item_id, o.status, o.purpose, o.amount_minor, o.currency, o.failure_code, o.source, o.created_at,c.e164 FROM orders o JOIN catalog_items c ON c.id=o.catalog_item_id
+SELECT o.id, o.organization_id, o.user_id, o.catalog_item_id, o.status, o.purpose, o.amount_minor, o.currency, o.failure_code, o.source, o.created_at, o.rental_days,c.e164 FROM orders o JOIN catalog_items c ON c.id=o.catalog_item_id
 WHERE o.organization_id=$1 AND ($2::text='' OR o.status=$2) ORDER BY o.created_at DESC,o.id DESC LIMIT $3 OFFSET $4
 `
 
@@ -324,6 +333,7 @@ type ListOrdersRow struct {
 	FailureCode    string
 	Source         string
 	CreatedAt      pgtype.Timestamptz
+	RentalDays     int32
 	E164           string
 }
 
@@ -353,6 +363,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 			&i.FailureCode,
 			&i.Source,
 			&i.CreatedAt,
+			&i.RentalDays,
 			&i.E164,
 		); err != nil {
 			return nil, err
@@ -366,7 +377,7 @@ func (q *Queries) ListOrders(ctx context.Context, arg ListOrdersParams) ([]ListO
 }
 
 const lockCatalogItem = `-- name: LockCatalogItem :one
-SELECT id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status, created_at FROM catalog_items WHERE id=$1 FOR UPDATE
+SELECT id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status, created_at, use_cases FROM catalog_items WHERE id=$1 FOR UPDATE
 `
 
 func (q *Queries) LockCatalogItem(ctx context.Context, id string) (CatalogItem, error) {
@@ -387,6 +398,7 @@ func (q *Queries) LockCatalogItem(ctx context.Context, id string) (CatalogItem, 
 		&i.InboundSmsFeeMicros,
 		&i.Status,
 		&i.CreatedAt,
+		&i.UseCases,
 	)
 	return i, err
 }
@@ -419,7 +431,7 @@ func (q *Queries) LockLease(ctx context.Context, arg LockLeaseParams) (Lease, er
 }
 
 const lockOrder = `-- name: LockOrder :one
-SELECT id, organization_id, user_id, catalog_item_id, status, purpose, amount_minor, currency, failure_code, source, created_at FROM orders WHERE id=$1 AND organization_id=$2 FOR UPDATE
+SELECT id, organization_id, user_id, catalog_item_id, status, purpose, amount_minor, currency, failure_code, source, created_at, rental_days FROM orders WHERE id=$1 AND organization_id=$2 FOR UPDATE
 `
 
 type LockOrderParams struct {
@@ -442,6 +454,7 @@ func (q *Queries) LockOrder(ctx context.Context, arg LockOrderParams) (Order, er
 		&i.FailureCode,
 		&i.Source,
 		&i.CreatedAt,
+		&i.RentalDays,
 	)
 	return i, err
 }

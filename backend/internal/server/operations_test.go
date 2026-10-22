@@ -98,7 +98,7 @@ func TestMockTransactionsSecurityAndInboundMessages(t *testing.T) {
 	if status != 403 {
 		t.Fatal("missing CSRF accepted")
 	}
-	purchase := operations.Command{CatalogItemID: "d2000000-0000-4000-8000-000000000001", Purpose: "customer_support", ConfirmedTerms: true}
+	purchase := operations.Command{CatalogItemID: "d2000000-0000-4000-8000-000000000001", Purpose: "customer_support", ConfirmedTerms: true, RentalDays: 30}
 	var results [2]operations.Result
 	var statuses [2]int
 	var wg sync.WaitGroup
@@ -130,7 +130,7 @@ func TestMockTransactionsSecurityAndInboundMessages(t *testing.T) {
 	if available != 9800 || reserved != 0 {
 		t.Fatal("double credit/debit or unreleased reserve")
 	}
-	failed := must("/orders", "failed-order", operations.Command{CatalogItemID: "d2000000-0000-4000-8000-000000000003", Purpose: "service_testing", ConfirmedTerms: true, SimulateFailure: true})
+	failed := must("/orders", "failed-order", operations.Command{CatalogItemID: "d2000000-0000-4000-8000-000000000003", Purpose: "service_testing", ConfirmedTerms: true, RentalDays: 30, SimulateFailure: true})
 	if failed.Status != "failed" || failed.Wallet.AvailableMinor != 9800 {
 		t.Fatal("failure did not compensate funds")
 	}
@@ -234,7 +234,7 @@ func TestMockRetentionExpiryAndReplay(t *testing.T) {
 		return out
 	}
 	run("retention-credit", operations.Command{Kind: "credit", AmountMinor: 10000})
-	order := run("retention-purchase", operations.Command{Kind: "purchase", CatalogItemID: "d2000000-0000-4000-8000-000000000001", Purpose: "service_testing", ConfirmedTerms: true})
+	order := run("retention-purchase", operations.Command{Kind: "purchase", CatalogItemID: "d2000000-0000-4000-8000-000000000001", Purpose: "service_testing", ConfirmedTerms: true, RentalDays: 30})
 	incoming := operations.Incoming{ID: "valid-provider-message", LeaseID: order.Number.ID, Body: "retained mock text", OccurredAt: time.Now()}
 	state, err := runtime.Store.Ingest(ctx, incoming)
 	if err != nil || state != "accepted" {

@@ -46,8 +46,20 @@ test("customer account completes payment, lease, encrypted inbox and refund work
     .first()
     .click();
   dialog = page.getByRole("dialog");
-  await dialog.getByRole("switch", { name: /I confirm this number/ }).check();
-  await dialog.getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Confirm lease", exact: true }),
+  ).toBeDisabled();
+  await dialog
+    .getByRole("combobox", { name: "Rental period", exact: true })
+    .click();
+  await page.getByRole("option", { name: /^30 days/ }).click();
+  await expect(
+    dialog.getByRole("button", { name: "Confirm lease", exact: true }),
+  ).toBeDisabled();
+  await dialog.getByRole("checkbox", { name: /I confirm this number/ }).check();
+  await dialog
+    .getByRole("button", { name: "Confirm lease", exact: true })
+    .click();
   await expect(dialog).not.toBeVisible();
   await expect(
     page.getByRole("tab", { name: "Your numbers", exact: true }),

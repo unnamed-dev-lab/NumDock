@@ -71,10 +71,10 @@ function checkBackendContract(): Plugin {
             const spec = await response.text();
             if (
               !response.ok ||
-              !spec.includes("/v1/organizations/{organization_id}/workspace")
+              !spec.includes("/v1/organizations/{organization_id}/summary")
             )
               server.config.logger.warn(
-                "[numdock] The connected backend does not expose the workspace API. Restart the NumDock backend from this checkout and verify API_INTERNAL_URL.",
+                "[numdock] The connected backend does not expose the account API. Restart the NumDock backend from this checkout and verify API_INTERNAL_URL.",
               );
           } catch {
             server.config.logger.warn(

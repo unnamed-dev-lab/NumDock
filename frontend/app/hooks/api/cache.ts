@@ -18,10 +18,11 @@ export function useRefreshAccount(org: string) {
 }
 const eventResources: Record<string, readonly string[]> = {
   "message.received": ["messages", "overview"],
+  "message.read": ["messages", "overview"],
   "message.deleted": ["messages", "overview"],
   "number.updated": ["numbers", "orders", "overview"],
-  "order.updated": ["numbers", "orders", "ledger", "wallet", "overview"],
-  "wallet.updated": ["wallet", "ledger", "payments"],
+  "order.updated": ["numbers", "orders", "ledger", "overview"],
+  "wallet.updated": ["ledger", "payments"],
   "payment.updated": ["payments", "payment"],
 };
 export function invalidateEvents(

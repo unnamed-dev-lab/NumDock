@@ -43,6 +43,7 @@ type CatalogItem struct {
 	InboundSmsFeeMicros int32
 	Status              string
 	CreatedAt           pgtype.Timestamptz
+	UseCases            []string
 }
 
 type DevelopmentOverviewDaily struct {
@@ -138,6 +139,7 @@ type Order struct {
 	FailureCode    string
 	Source         string
 	CreatedAt      pgtype.Timestamptz
+	RentalDays     int32
 }
 
 type Organization struct {

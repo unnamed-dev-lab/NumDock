@@ -12,9 +12,9 @@ import (
 )
 
 const seedCatalogItem = `-- name: SeedCatalogItem :exec
-INSERT INTO catalog_items (id, e164, country_code, country_name, region, number_type, capabilities, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status)
-VALUES ($1, $2, $3, $4, $5, $6, $7, 'NumDock Mock', 'mock', 'USD', $8, $9, 'available')
-ON CONFLICT (id) DO NOTHING
+INSERT INTO catalog_items (id, e164, country_code, country_name, region, number_type, capabilities, use_cases, provider, source, currency, monthly_fee_minor, inbound_sms_fee_micros, status)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'NumDock Mock', 'mock', 'USD', $9, $10, 'available')
+ON CONFLICT (id) DO UPDATE SET use_cases = EXCLUDED.use_cases
 `
 
 type SeedCatalogItemParams struct {
@@ -25,6 +25,7 @@ type SeedCatalogItemParams struct {
 	Region              string
 	NumberType          string
 	Capabilities        []string
+	UseCases            []string
 	MonthlyFeeMinor     int32
 	InboundSmsFeeMicros int32
 }
@@ -38,6 +39,7 @@ func (q *Queries) SeedCatalogItem(ctx context.Context, arg SeedCatalogItemParams
 		arg.Region,
 		arg.NumberType,
 		arg.Capabilities,
+		arg.UseCases,
 		arg.MonthlyFeeMinor,
 		arg.InboundSmsFeeMicros,
 	)

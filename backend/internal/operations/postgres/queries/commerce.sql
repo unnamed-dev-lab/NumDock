@@ -19,8 +19,8 @@ SELECT * FROM leases WHERE id=$1 AND organization_id=$2 FOR UPDATE;
 -- name: FinishLease :one
 UPDATE leases SET status=$3,ended_at=now() WHERE id=$1 AND organization_id=$2 RETURNING *;
 -- name: ListNumbers :many
-SELECT l.id,l.status,l.started_at,l.expires_at,l.ended_at,l.catalog_item_id,l.order_id,c.e164,c.country_code,c.number_type,c.capabilities,c.monthly_fee_minor
-FROM leases l JOIN catalog_items c ON c.id=l.catalog_item_id
+SELECT l.id,l.status,l.started_at,l.expires_at,l.ended_at,l.catalog_item_id,l.order_id,c.e164,c.country_code,c.number_type,c.capabilities,c.use_cases,c.monthly_fee_minor,o.rental_days,o.amount_minor
+FROM leases l JOIN catalog_items c ON c.id=l.catalog_item_id JOIN orders o ON o.id=l.order_id
 WHERE l.organization_id=sqlc.arg(organization_id)
 AND (sqlc.arg(status)::text='' OR l.status=sqlc.arg(status))
 AND (sqlc.arg(search)::text='' OR strpos(c.e164,sqlc.arg(search))>0)
@@ -47,7 +47,7 @@ SELECT * FROM orders WHERE id=$1 AND organization_id=$2 FOR UPDATE;
 UPDATE orders SET status='refunded' WHERE id=$1 AND organization_id=$2;
 
 -- name: CreateOrderWithID :one
-INSERT INTO orders(id,organization_id,user_id,catalog_item_id,status,purpose,amount_minor,failure_code) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *;
+INSERT INTO orders(id,organization_id,user_id,catalog_item_id,status,purpose,amount_minor,failure_code,rental_days) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *;
 -- name: OrderHasActiveLease :one
 SELECT EXISTS(SELECT 1 FROM leases WHERE order_id=$1 AND status='active');
 

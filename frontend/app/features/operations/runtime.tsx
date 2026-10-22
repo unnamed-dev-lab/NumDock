@@ -10,7 +10,6 @@ type ContextValue = {
   organization?: Identity["organizations"][number];
   summary?: components["schemas"]["AccountSummary"];
   summaryError?: unknown;
-  summaryPending?: boolean;
 };
 const Context = createContext<ContextValue>({});
 export function OperationsProvider({
@@ -35,7 +34,6 @@ export function OperationsProvider({
         organization,
         summary: summary.data,
         summaryError: summary.error,
-        summaryPending: summary.isPending,
       }}
     >
       {children}

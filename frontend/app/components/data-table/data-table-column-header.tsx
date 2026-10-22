@@ -1,10 +1,12 @@
 import type { Column } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/motion/button/base";
 
-interface DataTableColumnHeaderProps<TData, TValue>
-  extends React.HTMLAttributes<HTMLDivElement> {
+interface DataTableColumnHeaderProps<
+  TData,
+  TValue,
+> extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
   title: string;
 }
@@ -16,7 +18,9 @@ export function DataTableColumnHeader<TData, TValue>({
 }: DataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
     return (
-      <div className={cn("text-xs font-medium text-muted-foreground", className)}>
+      <div
+        className={cn("text-xs font-medium text-muted-foreground", className)}
+      >
         {title}
       </div>
     );
@@ -38,10 +42,12 @@ export function DataTableColumnHeader<TData, TValue>({
         ) : isSorted === "asc" ? (
           <ArrowUp className="ml-1.5 size-3.5" aria-hidden="true" />
         ) : (
-          <ArrowUpDown className="ml-1.5 size-3.5 opacity-50" aria-hidden="true" />
+          <ArrowUpDown
+            className="ml-1.5 size-3.5 opacity-50"
+            aria-hidden="true"
+          />
         )}
       </Button>
     </div>
   );
 }
-

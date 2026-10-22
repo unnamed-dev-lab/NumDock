@@ -1,9 +1,17 @@
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import * as React from "react";
 import {
   type ColumnDef,
   type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
+  type TableOptions,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -21,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTablePagination } from "./data-table-pagination";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +41,12 @@ interface DataTableProps<TData, TValue> {
   className?: string;
   defaultPageSize?: number;
   manual?: boolean;
+  paginate?: boolean;
+  responsiveRows?: boolean;
+  pending?: boolean;
+  label?: string;
+  scrollClassName?: string;
+  getRowId?: TableOptions<TData>["getRowId"];
   rowCount?: number;
 
   // Optional external controlled states (e.g. for Zustand persistence)
@@ -54,6 +69,12 @@ export function DataTable<TData, TValue>({
   className,
   defaultPageSize = 10,
   manual = false,
+  paginate = true,
+  responsiveRows = true,
+  pending = false,
+  label,
+  scrollClassName,
+  getRowId,
   rowCount,
   pageIndex,
   pageSize,
@@ -95,6 +116,8 @@ export function DataTable<TData, TValue>({
   const table = useReactTable({
     data,
     columns,
+    getRowId,
+    enableSorting: !manual || !!onSortingChange,
     state: {
       sorting: activeSorting,
       columnFilters: activeColumnFilters,
@@ -132,22 +155,99 @@ export function DataTable<TData, TValue>({
     },
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    manualPagination: manual,
+    manualPagination: manual || !paginate,
     manualFiltering: manual,
     manualSorting: manual,
     rowCount,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: paginate ? getPaginationRowModel() : undefined,
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const sortOptions = [
+    { value: "none", label: t("workspace.tableDefaultOrder") },
+    ...table
+      .getAllLeafColumns()
+      .filter((column) => column.getCanSort())
+      .flatMap((column) => {
+        const label =
+          column.columnDef.meta?.label ??
+          (typeof column.columnDef.header === "string"
+            ? column.columnDef.header
+            : column.id);
+        return ["asc", "desc"].map((direction) => ({
+          value: `${column.id}:${direction}`,
+          label: t("workspace.tableSortOption", {
+            column: label,
+            direction: t(
+              direction === "asc"
+                ? "workspace.tableAscending"
+                : "workspace.tableDescending",
+            ),
+          }),
+        }));
+      }),
+  ];
   return (
-    <div className={cn("space-y-4", className)}>
+    <div
+      data-slot="data-table"
+      aria-busy={pending}
+      className={cn("space-y-4", className)}
+    >
       {toolbar ? toolbar(table) : null}
+      {responsiveRows &&
+      sortOptions.length > 1 &&
+      (rowCount ?? data.length) > 1 ? (
+        <div className="md:hidden">
+          <Select
+            items={sortOptions}
+            disabled={pending}
+            value={
+              activeSorting[0]
+                ? `${activeSorting[0].id}:${activeSorting[0].desc ? "desc" : "asc"}`
+                : "none"
+            }
+            onValueChange={(value) => {
+              if (value === "none") table.setSorting([]);
+              else if (
+                value &&
+                sortOptions.some((option) => option.value === value)
+              ) {
+                const [id, direction] = value.split(":");
+                if (id) table.setSorting([{ id, desc: direction === "desc" }]);
+              }
+            }}
+          >
+            <SelectTrigger
+              className="h-11 w-full"
+              aria-label={t("workspace.tableSort")}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {sortOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      ) : null}
       <div className="overflow-hidden rounded-md border border-border bg-card">
-        <Table>
-          <TableHeader>
+        <Table
+          aria-label={label}
+          containerClassName={scrollClassName}
+          containerLabel={scrollClassName ? label : undefined}
+          className={cn(responsiveRows && "block md:table")}
+        >
+          <TableHeader
+            className={cn(
+              responsiveRows && "hidden md:table-header-group",
+              scrollClassName && "sticky top-0 z-10 bg-card",
+            )}
+          >
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow
                 key={headerGroup.id}
@@ -165,35 +265,90 @@ export function DataTable<TData, TValue>({
                             : "none"
                         : undefined
                     }
-                    className="h-10 text-muted-foreground"
+                    className={cn(
+                      "h-10 text-muted-foreground",
+                      header.column.columnDef.meta?.align === "right" &&
+                        "text-right",
+                      header.column.id === "actions" &&
+                        "sticky right-0 z-10 border-l border-border bg-card",
+                    )}
                   >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                    {header.isPlaceholder ? null : typeof header.column
+                        .columnDef.header === "string" &&
+                      header.column.getCanSort() ? (
+                      <DataTableColumnHeader
+                        column={header.column}
+                        title={header.column.columnDef.header}
+                        className={
+                          header.column.columnDef.meta?.align === "right"
+                            ? "justify-end"
+                            : undefined
+                        }
+                      />
+                    ) : (
+                      flexRender(
+                        header.column.columnDef.header,
+                        header.getContext(),
+                      )
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
             ))}
           </TableHeader>
-          <TableBody>
+          <TableBody
+            inert={pending}
+            className={cn(responsiveRows && "block md:table-row-group")}
+          >
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
+                  data-row-id={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-border/60 transition-colors hover:bg-muted/50"
+                  className={cn(
+                    "border-border/60 transition-colors md:hover:bg-muted/50",
+                    responsiveRows && "block p-4 md:table-row md:p-0",
+                  )}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3">
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
+                  {row.getVisibleCells().map((cell, index) => {
+                    const actions = cell.column.id === "actions";
+                    const meta = cell.column.columnDef.meta;
+                    const columnLabel =
+                      meta?.label ??
+                      (typeof cell.column.columnDef.header === "string"
+                        ? cell.column.columnDef.header
+                        : cell.column.id);
+                    return (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          "py-3",
+                          meta?.align === "right" && "md:text-right",
+                          responsiveRows &&
+                            "grid grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)] items-start gap-3 whitespace-normal px-0 py-1.5 md:table-cell md:whitespace-nowrap md:px-2 md:py-3",
+                          responsiveRows && index === 0 && "block pb-3",
+                          actions &&
+                            "md:sticky md:right-0 md:z-10 md:border-l md:border-border md:bg-card",
+                          responsiveRows &&
+                            actions &&
+                            "mt-3 block border-t border-border pt-3 md:mt-0 md:border-t-0 md:pt-3",
+                        )}
+                      >
+                        {responsiveRows && index !== 0 && !actions ? (
+                          <span className="text-xs text-muted-foreground md:hidden">
+                            {columnLabel}
+                          </span>
+                        ) : null}
+                        <div className="min-w-0 [overflow-wrap:anywhere] [&>div]:flex-wrap">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          ) ?? "—"}
+                        </div>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               ))
             ) : (
@@ -209,7 +364,9 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      {paginate ? (
+        <DataTablePagination table={table} pending={pending} />
+      ) : null}
     </div>
   );
 }

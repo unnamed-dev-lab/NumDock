@@ -1,8 +1,9 @@
 # Local API testing without Postman
 
-The project ships an interactive Scalar API reference at `/docs/api`. It can
-send real requests, including cookie-authenticated requests, through the
-frontend's same-origin proxy.
+Use the frontend's same-origin proxy with a cookie-aware HTTP client. The raw
+contract is available at /v1/openapi.yaml; the product no longer includes an
+interactive API reference. Private resource examples are in
+[examples/resources.http](examples/resources.http).
 
 ## Start the stack
 
@@ -17,20 +18,6 @@ In another terminal:
 cd frontend
 pnpm dev
 ```
-
-Open **http://localhost:3000/docs/api**.
-
-The page:
-
-1. Loads the contract from `/v1/openapi.yaml`.
-2. Calls `GET /v1/auth/csrf` and stores the returned token in memory.
-3. Sends cookies with `credentials: "include"`.
-4. Adds `X-CSRF-Token` to non-GET requests.
-5. Lets the browser add `Origin` automatically for same-origin POST requests.
-
-The token is kept in memory, not localStorage. The session itself remains in
-the HttpOnly cookie. If the CSRF bootstrap fails, use the refresh action in the
-docs header and confirm the Go API and frontend proxy are running.
 
 Keep `APP_ORIGIN` aligned with the browser URL. For this example it is
 `http://localhost:3000`; `http://127.0.0.1:3000` is a different origin.
@@ -72,7 +59,7 @@ Invoke-RestMethod `
 ```
 
 `$session` stores the HttpOnly cookies for subsequent requests. The CSRF token
-is required only for register, login, and logout.
+is required for all browser writes. Business writes also require Idempotency-Key.
 
 ## curl flow
 
@@ -101,10 +88,8 @@ The direct API is available at `http://127.0.0.1:8080`, but it must receive an
 open the frontend at that origin rather than `localhost`. For the normal local
 setup, use the frontend proxy at `localhost:3000`.
 
-## What the docs page does not do
+## Verification
 
-- It does not create fake accounts, inventory, messages, or payments.
-- It does not bypass CSRF or session validation.
-- It does not expose session tokens or CSRF tokens in localStorage.
-- It does not replace the integration tests. Contract and behavior tests remain
-  in `backend/internal/server/`.
+Backend integration and contract tests live in backend/internal/server/. Customer
+flows are exercised by frontend/tests/. API keys and outbound customer Webhooks
+are no longer supported; use an authenticated cookie session for private APIs.

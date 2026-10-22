@@ -3,9 +3,7 @@
 This document describes the currently implemented identity and organization
 endpoints. The machine-readable contract is
 [`openapi.yaml`](openapi.yaml); the shared error model is documented in
-[`errors.md`](errors.md). The Scalar page at `/docs/api` renders operation
-summaries, descriptions, parameters, examples, and response tables directly
-from the OpenAPI file. Keep endpoint behavior and examples in the contract
+[`errors.md`](errors.md). Keep endpoint behavior and examples in the contract
 first; this Markdown file is a human-readable guide, not a second contract.
 
 ## Endpoint summary
@@ -239,4 +237,4 @@ one-second timeout and should be used by load balancers and orchestrators.
 ## Document endpoint
 
 `GET /v1/openapi.yaml` returns the machine-readable OpenAPI 3.0 contract as
-`application/yaml`. It is also what the Scalar page at `/docs/api` loads.
+`application/yaml`.

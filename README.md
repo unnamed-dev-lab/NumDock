@@ -44,13 +44,11 @@ scripts/backend.ps1   Windows 后端任务入口
 
 ## API 文档
 
-- 交互式 API 参考（Scalar）：`http://localhost:3000/docs/api`
 - OpenAPI 契约：`backend/openapi/openapi.yaml`，运行时由 `GET /v1/openapi.yaml` 提供
 - Markdown 接口分类与详解：`backend/openapi/README.md`
 - 错误码、限流、超时与 curl/PowerShell 示例：`backend/openapi/errors.md`、`backend/openapi/testing.md`
 - TypeScript SDK：`backend/openapi/README.md` 中的 Hey API 命令；契约已用 Hey API 0.99 + TypeScript 5.9.3 做严格类型检查
 
-Scalar 页面会在浏览器中直接加载契约，导航、接口说明、参数、请求示例和响应表均由 OpenAPI 自动生成；Test Request 会自动获取 CSRF Token、携带同源 Cookie，并在非 GET 请求中附加 `X-CSRF-Token`，不需要 Postman。
 
 ## 本地启动
 

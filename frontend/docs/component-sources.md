@@ -87,3 +87,32 @@ The app-owned `features/` modules contain business validation, API calls and pag
 ## 工作区操作精简
 
 继续复用已安装的 beUI Button／Input 与 Base UI Dialog，无新增组件或依赖。开发环境仅在工作区顶栏集中标识，移除菜单、页面与目录的重复提示；连接失败和停用状态保留统一处理。美元金额以十进制字符串转换为整数美分；成功操作自动关闭，含一次性密钥的弹窗仍等待用户保存。测试收信、测试 Webhook、启停端点直接执行并反馈状态，重试同一失败命令保留幂等键；释放、退款、删除和撤销仍确认。申请号码成功切回已租号码列表。
+
+## 统一表格与窄屏交互
+
+MCP 核对既有 shadcn Table，并参照官方 Base UI Data Table 的 Table + TanStack Table 组合方式继续定制共享业务组件，无新增基础组件或依赖。组织表和历史每日明细迁入共享 DataTable；所有十种表格视图由同一 TanStack 引擎管理。列元数据使用 TanStack v8 官方 declaration merging，提供窄屏标签和数值对齐。
+
+业务表格采用同一份 DOM 在窄屏展开记录，避免重复挂载操作弹窗或在切换屏幕时丢失状态；桌面固定操作列，历史明细保留适合比较的横向表格和键盘滚动。所有业务行使用资源 ID，历史行使用日期；仅真正接入排序的表头启用排序。后端分页的操作列表不会伪装成本页排序；目录继续使用契约支持的后端排序。分页／筛选等待新结果时保留原表格并暂停旧行操作，避免布局跳动和错点。
+
+目录去除每行重复的静态来源提示列，保留供应商字段；减少窄屏记录高度和桌面操作列的遮挡。确认释放、退款、删除及撤销时展示明确资源名称。列表列定义与金额／日期格式器保持稳定，后台摘要更新不会重新挂载正在使用的行操作。
+
+
+### Public number selection
+
+The homepage reuses the installed beUI Button / ButtonLink and Input, the installed Base UI Select, and the shared shadcn Table + TanStack Table business composition. No new primitives or packages were installed. The local UI/UX catalog's marketplace/directory pattern informed the search-first layout; existing NumDock tokens and typography are retained. Public catalog data uses the generated API client and the same TanStack Query key as the workspace, with SSR initial data and URL filters. Choosing a number preserves its E.164 search through login/registration; all actual leasing and balance changes remain authenticated and confirmed in the workspace. Organization browser URLs use persisted readable slugs, with authenticated redirects for old UUID links.
+
+
+### Personal account and payments
+
+Removed customer-facing organization setup/selectors/membership tables and developer/API navigation. Payment order creation reuses ActionDialog with the installed Base UI Dialog and beUI Input/Button. Checkout composes the installed Card and Button, and payment history uses the existing shared TanStack Table + shadcn Table. No new library primitives or packages were installed. Database-backed checkout restores pending/terminal status after reload and uses the same idempotency key after an uncertain confirmation response. The return destination is restricted to private account paths and preserves the selected number.
+
+
+### Resource hooks and developer feature removal
+
+Product routes for platform/status/API reference/developer settings were removed,
+along with their Scalar dependency and styles. Existing beUI and Base UI business
+compositions are retained. No new library components were installed. All TanStack
+Query declarations now live in app/hooks/api, with an ESLint import boundary;
+root.tsx retains only QueryClient provider setup. Generated resource responses
+replace the workspace/view API. Responsive tables, confirmation focus, cached
+period switching, encrypted message cleanup and the payment flow are preserved.

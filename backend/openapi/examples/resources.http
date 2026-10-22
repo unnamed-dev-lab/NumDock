@@ -1,0 +1,29 @@
+# Cookie-session examples. Log in with your own development credentials using
+# a cookie-aware client; see ../testing.md. Never commit passwords or cookies.
+@baseUrl = http://localhost:3001
+@organizationId = d0000000-0000-4000-8000-000000000001
+
+### Current identity
+GET {{baseUrl}}/v1/me
+
+### Leased numbers
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/numbers?limit=20&offset=0
+
+### Message metadata (no bodies)
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/messages?limit=20&offset=0
+
+### Wallet
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/billing/wallet
+
+### Ledger
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/billing/ledger?limit=20&offset=0
+
+### Completed orders
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/orders?status=completed&limit=20&offset=0
+
+### Payment history
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/billing/payments?limit=20&offset=0
+
+### Decrypt one owned message; use an ID from the metadata response
+@messageId = PASTE_MESSAGE_ID
+GET {{baseUrl}}/v1/organizations/{{organizationId}}/messages/{{messageId}}

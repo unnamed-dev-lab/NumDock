@@ -3,17 +3,14 @@
 This directory is the documentation entry point for the NumDock HTTP API.
 
 - **OpenAPI contract:** [`openapi.yaml`](openapi.yaml)
-- **Interactive reference:** `/docs/api` when the frontend is running
 - **Served contract:** `GET /v1/openapi.yaml` from the Go API
 - **Endpoint reference:** [`identity.md`](identity.md)
 - **Error reference:** [`errors.md`](errors.md)
 - **Local testing:** [`testing.md`](testing.md)
 
-The OpenAPI file is the single source of truth. Scalar derives the sidebar,
-operation summaries and descriptions, parameters, request examples, schemas,
-and response tables from it. The Markdown files are curated guides for
-authentication, conventions, error handling, and non-Postman testing; do not
-add endpoint behavior here without updating the contract.
+The OpenAPI file is the single source of truth. The TypeScript client is generated
+from it. Product pages no longer expose an interactive developer reference.
+Resource endpoint migration details are in [resources.md](resources.md).
 
 ## Current scope
 
@@ -27,10 +24,10 @@ The API contains identity and an explicitly marked development catalog:
 | Organizations | `GET /v1/organizations` | Implemented |
 | Overview | `GET /v1/organizations/{organization_id}/overview` | Organization-authorized development summaries, empty/disabled elsewhere |
 | Catalog | `GET /v1/catalog/numbers` | Read-only PostgreSQL mock catalog in development; disabled elsewhere |
-| Workspace | `/v1/organizations/{organization_id}/workspace`, `/orders`, `/leases/*/release`, `/billing/mock-credit`, `/messages/*`, `/api-keys/*`, `/webhooks/*`, `/events/stream` | Persistent Mock development workflows |
+| Account resources | /summary, /numbers, /messages, /orders, /billing/wallet, /billing/ledger, /billing/payments and /events/stream under the account prefix | Separate authenticated resources |
 | Provider ingress | `POST /v1/providers/mock/webhook` | Signed, deduplicated and lease-authorized development messages |
 
-Development records are marked Mock and disabled in production. The catalog lists only available numbers. Development wallets, leases, messages and webhook deliveries are persisted; no real carrier or payment is connected. See [Mock workspace](../../docs/mock-workspace.md) for business rules, idempotency, key scopes and webhook signatures.
+Development records are marked Mock and disabled in production. The catalog lists only available numbers. Development wallets, leases, messages and payment orders are persisted; no real carrier or payment is connected. See [Mock workspace](../../docs/mock-workspace.md) for business rules, idempotency, payment rules and incoming message signatures.
 
 ## Base URLs
 
@@ -171,21 +168,12 @@ await register({
 automatically; non-browser clients must provide it explicitly. Do not store
 the session token or CSRF token in localStorage.
 
-## Scalar display language
-
-Scalar's `localization.locale` translates its own controls, buttons, search,
-and status text. It does not translate OpenAPI `summary`, `description`, or
-tag strings. The API contract content in this repository is English; a
-fully localized API reference would require a separate translated contract
-whose paths, operations, statuses, and schemas stay in parity with this one.
-
 ## Related source
 
 - Contract tests: `backend/internal/server/integration_test.go`,
   `backend/internal/server/error_paths_test.go`
 - OpenAPI validation: contract responses are validated by
   `assertContract` in the integration tests.
-- Scalar frontend route: `frontend/app/routes/api-docs.tsx`
 
 ## Overview and telemetry
 
@@ -194,3 +182,6 @@ The overview endpoint accepts `days=7` or `30`, returns UTC daily samples and in
 ## Public feature status
 
 `GET /v1/status` is unauthenticated and returns aggregate API/database readiness, configured feature modes (`active`, `mock`, `disabled`, `unavailable`) and live provider/payment connection flags. It contains no tenant data or operational diagnostics. HTTP 200 means the status report was read; inspect dependency fields for readiness. Mock is enabled only in development. Responses are not cached by HTTP intermediaries.
+
+
+个人账户充值流程见 [Development payments](payments.md)：支付订单创建、确认、取消、历史查询以及幂等入账。组织路径参数仅保留为内部授权边界，普通注册不再要求组织名称。

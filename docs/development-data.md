@@ -40,8 +40,8 @@ Get-Content .local/dev-seed-password
 - 24 条记录：US、CA 各 12 条；使用合成的 555-01xx 演示号码。
 - 唯一供应商标识为 `NumDock Mock`，`source=mock`；能力仅为 `sms`、`voice`、`mms`，不宣称可用于第三方账号验证。
 - USD 月费以美分保存，短信单价以百万分之一美元保存；这些是演示报价，以模拟业务规则计价，开发版通过真实数据库钱包、订单和租约实现业务流程，模拟收信免费。
-- 目录是登录用户共享的开发参考库存，不是某个组织已购买的资源；已租用资源会从可用目录移出；组织私有号码和消息通过组织工作区接口访问。
-- 打开 `http://localhost:3000/app/numbers?tab=catalog`，或使用 `/docs/api` 的 Catalog 分类。
+- 目录是游客与登录用户均可浏览的开发参考库存，不是某个组织已购买的资源；已租用资源会从可用目录移出；组织私有号码和消息通过组织工作区接口访问。
+- 打开 `http://localhost:3000/app/numbers?tab=catalog`，也可直接访问公开首页目录。
 - `APP_ENV` 不为 development 时，无论数据库里是否有模拟记录，接口都返回空列表与 `mode=disabled`。这不替代生产库隔离：生产应使用独立数据库，不复制开发用户。
 
 ## 重复执行与冲突
@@ -68,4 +68,4 @@ Windows 脚本还自动初始化 Git 忽略的 `.local/data-encryption-key`。�
 
 页面显示 404 时应先检查实际连接的后端，缺少数据应返回 200 和空列表。`GET /v1/openapi.yaml` 必须包含 `/v1/organizations/{organization_id}/workspace`。更新 Go 代码后需要重启后端；Vite 热更新只更新前端。现在前端启动会检查后端契约，并在终端提示旧版连接。页面也区分加载中、连接异常与明确停用，重试会同时刷新工作区状态和当前列表。
 
-当前会话统一使用 `http://localhost:3001` 开发前端，历史 3010／3011 预览入口跳转到同一实例，避免多个 React Router 进程争用生成目录。调用样例见 [workspace.http](../backend/openapi/examples/workspace.http)。
+当前会话统一使用 `http://localhost:3001` 开发前端，历史 3010／3011 预览入口跳转到同一实例，避免多个 React Router 进程争用生成目录。调用样例见 [resources.http](../backend/openapi/examples/resources.http)。

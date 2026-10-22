@@ -2,25 +2,14 @@ import { ModeNotice } from "@/features/operations/shared";
 import { StatusBadge } from "./workspace-ui";
 import { AccountMenu } from "@/features/auth/account-menu";
 import { useOperations } from "@/features/operations/runtime";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
-import { useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router";
 import {
-  BookOpen,
-  Building2,
   ChevronRight,
   Globe2,
   Inbox,
-  KeyRound,
   LayoutDashboard,
   PanelLeft,
   Settings,
@@ -44,7 +33,6 @@ import {
   AnimatedSidebarTrigger,
 } from "@/components/motion/animated-sidebar";
 import type { TranslationKey } from "@/lib/i18n";
-import { roleLabel } from "@/lib/i18n/labels";
 import { LanguageMenu } from "@/components/language";
 import type { Identity } from "@/lib/api/client";
 import { cn, initials } from "@/lib/utils";
@@ -74,19 +62,6 @@ const primaryNavigation: NavigationItem[] = [
   },
 ];
 
-const developerNavigation: NavigationItem[] = [
-  {
-    label: "workspace.apiWebhooks",
-    to: "/app/developers",
-    icon: KeyRound,
-  },
-  {
-    label: "workspace.apiReference",
-    to: "/docs/api",
-    icon: BookOpen,
-  },
-];
-
 const accountNavigation: NavigationItem[] = [
   { label: "workspace.settings", to: "/app/settings", icon: Settings },
 ];
@@ -96,7 +71,6 @@ const sectionTitles: Record<string, TranslationKey> = {
   "/app/numbers": "workspace.numbers",
   "/app/messages": "workspace.messages",
   "/app/billing": "workspace.billing",
-  "/app/developers": "workspace.apiWebhooks",
   "/app/settings": "workspace.settings",
 };
 
@@ -114,7 +88,7 @@ function NavigationGroup({
 }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const { organization } = useOperations();
 
   return (
@@ -133,8 +107,9 @@ function NavigationGroup({
                   isActive={active}
                   onSelect={() =>
                     void navigate(
-                      organization
-                        ? `${item.to}?organization=${encodeURIComponent(organization.id)}`
+                      organization &&
+                        new URLSearchParams(search).has("organization")
+                        ? `${item.to}?organization=${encodeURIComponent(organization.slug)}`
                         : item.to,
                     )
                   }
@@ -163,8 +138,7 @@ export function WorkspaceShell({
 }) {
   const { t } = useTranslation();
   const { pathname } = useLocation();
-  const { organization, summary } = useOperations();
-  const [params, setParams] = useSearchParams();
+  const { summary } = useOperations();
   const currentTitle = sectionTitles[pathname] ?? "workspace.workspace";
 
   return (
@@ -188,73 +162,6 @@ export function WorkspaceShell({
             </AnimatedSidebarClose>
             <Brand nameClassName="group-data-[state=collapsed]/sidebar:hidden" />
           </div>
-
-          <div
-            title={organization?.name ?? t("workspace.noOrganization")}
-            className="hidden h-11 items-center justify-center rounded-md border border-border bg-background text-primary group-data-[state=collapsed]/sidebar:flex"
-          >
-            <Building2
-              className="size-4"
-              role="img"
-              aria-label={organization?.name ?? t("workspace.noOrganization")}
-            />
-          </div>
-          <div className="rounded-md border border-border bg-background p-3 group-data-[state=collapsed]/sidebar:hidden">
-            <p className="text-xs font-medium text-muted-foreground">
-              {t("workspace.organization")}
-            </p>
-            {identity.organizations.length > 1 ? (
-              <Select
-                value={organization?.id ?? ""}
-                onValueChange={(value) => {
-                  if (value) {
-                    const next = new URLSearchParams(params);
-                    next.set("organization", value);
-                    for (const key of [...next.keys()]) {
-                      if (key.endsWith("Offset")) next.delete(key);
-                    }
-                    setParams(next, { preventScrollReset: true });
-                  }
-                }}
-                items={identity.organizations.map((o) => ({
-                  value: o.id,
-                  label: o.name,
-                }))}
-              >
-                <SelectTrigger
-                  aria-label={t("workspace.organization")}
-                  className="mt-2 w-full"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {identity.organizations.map((o) => (
-                    <SelectItem key={o.id} value={o.id}>
-                      {o.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="mt-1.5 flex min-w-0 items-center gap-2">
-                <Building2
-                  className="size-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-                <span className="truncate text-sm font-medium text-foreground">
-                  {organization?.name ?? t("workspace.noOrganization")}
-                </span>
-              </div>
-            )}
-            <p className="mt-1 truncate text-xs text-muted-foreground">
-              {organization?.role
-                ? roleLabel(organization.role, t)
-                : t("workspace.noRole")}
-              {identity.organizations.length > 1
-                ? ` · ${t("common.workspaceCount", { count: identity.organizations.length })}`
-                : ""}
-            </p>
-          </div>
         </AnimatedSidebarHeader>
 
         <AnimatedSidebarContent className="gap-1 px-2 py-1">
@@ -262,10 +169,7 @@ export function WorkspaceShell({
             label="workspace.workspace"
             items={primaryNavigation}
           />
-          <NavigationGroup
-            label="workspace.developer"
-            items={developerNavigation}
-          />
+
           <NavigationGroup
             label="workspace.account"
             items={accountNavigation}

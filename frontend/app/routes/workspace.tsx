@@ -17,7 +17,7 @@ import { Button } from "@/components/motion/button/base";
 import { ThemeToggle } from "@/components/theme";
 import { WorkspaceRouteError } from "@/components/workspace-route-error";
 import { WorkspaceShell } from "@/features/workspace/workspace-shell";
-import { useSession } from "@/features/auth/use-session";
+import { useSession } from "@/hooks/api/auth";
 import { errorMessage, type Identity } from "@/lib/api/client";
 
 export type WorkspaceOutletContext = {
@@ -43,14 +43,36 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
   }
 
-  if (response.status === 401) throw redirect("/login");
+  if (response.status === 401) {
+    const url = new URL(request.url);
+    const target = url.pathname + url.search;
+    throw redirect(
+      target === "/app"
+        ? "/login"
+        : "/login?returnTo=" + encodeURIComponent(target),
+    );
+  }
   if (!response.ok) {
     throw new Response("Unable to load the workspace.", {
       status: response.status === 503 ? 503 : 502,
     });
   }
 
-  return (await response.json()) as Identity;
+  const identity = (await response.json()) as Identity;
+  const url = new URL(request.url);
+  const selected = url.searchParams.get("organization");
+  if (selected) {
+    const organization = identity.organizations.find(
+      (o) => o.slug === selected || o.id === selected,
+    );
+    if (!organization)
+      throw new Response("Workspace not found.", { status: 404 });
+    if (selected !== organization.slug) {
+      url.searchParams.set("organization", organization.slug);
+      throw redirect(url.pathname + url.search);
+    }
+  }
+  return identity;
 }
 
 function WorkspaceLoading() {

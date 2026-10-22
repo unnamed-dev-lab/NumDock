@@ -17,9 +17,6 @@ importers:
       '@react-router/node':
         specifier: ^7.18.4
         version: 7.18.4(react-router@7.18.4(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(typescript@5.9.3)
-      '@scalar/api-reference-react':
-        specifier: 0.9.81
-        version: 0.9.81(change-case@5.4.4)(react@19.3.1)(tailwindcss@4.3.3)(typescript@5.9.3)(zod@4.6.7)
       '@tanstack/react-query':
         specifier: ^5.104.4
         version: 5.104.4(@types/react@19.3.0)(react@19.3.1)

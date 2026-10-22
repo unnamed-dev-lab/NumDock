@@ -1,5 +1,4 @@
 import createClient from "openapi-fetch";
-import { queryOptions } from "@tanstack/react-query";
 import type { paths, components } from "./schema";
 import type { TFunction } from "i18next";
 import type { TranslationKey } from "@/lib/i18n";
@@ -37,8 +36,6 @@ export function unwrap<T>(result: {
 
 const errorKeys: Record<string, TranslationKey> = {
   resource_limit: "errors.resource_limit",
-  invalid_webhook_url: "errors.invalid_webhook_url",
-  webhook_disabled: "errors.webhook_disabled",
   feature_disabled: "errors.feature_disabled",
   idempotency_conflict: "errors.idempotency_conflict",
   inventory_unavailable: "errors.inventory_unavailable",
@@ -76,16 +73,3 @@ export async function csrfHeaders() {
   const token = unwrap(await api.GET("/v1/auth/csrf"));
   return { "X-CSRF-Token": token.token };
 }
-
-export const identityQuery = queryOptions({
-  queryKey: ["identity"],
-  queryFn: async ({ signal }) => {
-    const result = await api.GET("/v1/me", { signal });
-    // A confirmed anonymous session replaces any previous cached identity.
-    if (result.response.status === 401) return null;
-    return unwrap(result);
-  },
-  staleTime: 30_000,
-  retry: (count, error) =>
-    !(error instanceof ApiError && error.status < 500) && count < 1,
-});

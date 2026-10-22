@@ -2,7 +2,6 @@ import type { MetaFunction } from "react-router";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { LockKeyhole, Server, ShieldCheck, UserCheck } from "lucide-react";
-import { ButtonLink } from "@/components/motion/button/base";
 import {
   PublicFooter,
   PublicHeader,
@@ -126,23 +125,15 @@ export default function SecurityPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <WorkspaceEntry />
-              <ButtonLink
-                href="/status"
-                variant="outline"
-                size="md"
-                className="rounded-md"
-              >
-                {t("home.viewStatus")}
-              </ButtonLink>
             </div>
           </div>
         </section>
         <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8">
           <Link
-            to="/platform"
+            to="/"
             className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            {t("security.backToPlatform")}
+            {t("auth.backHome")}
           </Link>
         </div>
       </main>

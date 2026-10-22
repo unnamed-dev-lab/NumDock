@@ -2,6 +2,7 @@ import { Button } from "@/components/motion/button/base";
 import type { MetaFunction } from "react-router";
 import { localizedMeta } from "@/lib/i18n/meta";
 import { useTranslation } from "react-i18next";
+import { WalletSummary } from "@/features/operations/billing";
 import { NumbersTable } from "@/features/operations/numbers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/features/workspace/workspace-ui";
@@ -57,7 +58,8 @@ export default function NumbersRoute() {
           <NumbersTable />
         </TabsContent>
 
-        <TabsContent value="catalog" className="pt-4">
+        <TabsContent value="catalog" className="space-y-5 pt-4">
+          <WalletSummary />
           <CatalogView />
         </TabsContent>
       </Tabs>

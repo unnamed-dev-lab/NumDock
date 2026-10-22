@@ -1,8 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 import { AccountMenu } from "@/features/auth/account-menu";
-import { useSession } from "@/features/auth/use-session";
-import { identityQuery, errorMessage } from "@/lib/api/client";
+import { useSession, useIdentity } from "@/hooks/api/auth";
+import { errorMessage } from "@/lib/api/client";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Brand } from "@/components/brand";
@@ -16,14 +15,14 @@ export function PublicHeader() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background">
-      <div className="flex h-16 w-full items-center justify-between gap-6 px-5 sm:px-8 lg:px-12">
+      <div className="flex h-16 w-full items-center justify-between gap-2 px-5 sm:gap-6 sm:px-8 lg:px-12">
         <Brand />
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground lg:flex">
           <Link
-            to="/platform"
+            to="/#numbers"
             className="underline-offset-4 hover:text-foreground hover:underline"
           >
-            {t("home.navProduct")}
+            {t("home.numbersAndPricing")}
           </Link>
           <Link
             to="/security"
@@ -31,20 +30,14 @@ export function PublicHeader() {
           >
             {t("home.navSecurity")}
           </Link>
-          <Link
-            to="/status"
-            className="underline-offset-4 hover:text-foreground hover:underline"
-          >
-            {t("home.navStatus")}
-          </Link>
-          <Link
-            to="/docs/api"
-            className="underline-offset-4 hover:text-foreground hover:underline"
-          >
-            {t("home.navApi")}
-          </Link>
         </nav>
         <div className="flex items-center gap-1">
+          <Link
+            to="/#numbers"
+            className="hidden min-h-11 items-center px-2 text-sm font-medium text-primary min-[360px]:inline-flex lg:hidden"
+          >
+            {t("workspace.catalog")}
+          </Link>
           {identity.data ? (
             <>
               <Link
@@ -63,7 +56,7 @@ export function PublicHeader() {
             <>
               <Link
                 to="/login"
-                className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="inline-flex h-9 shrink-0 items-center whitespace-nowrap rounded-md px-2 text-sm font-medium text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 {t("home.secondaryCta")}
               </Link>
@@ -121,20 +114,11 @@ export function PublicFooter() {
         <Brand />
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <span>{t("home.footerTagline")}</span>
-          <Link to="/status" className="hover:text-foreground hover:underline">
-            {t("home.navStatus")}
-          </Link>
           <Link
             to="/security"
             className="hover:text-foreground hover:underline"
           >
             {t("home.navSecurity")}
-          </Link>
-          <Link
-            to="/docs/api"
-            className="hover:text-foreground hover:underline"
-          >
-            {t("home.navApi")}
           </Link>
         </div>
       </div>
@@ -145,7 +129,7 @@ export function PublicFooter() {
 // Public calls to action share the same session cache as the navigation.
 export function WorkspaceEntry({ className }: { className?: string }) {
   const { t } = useTranslation();
-  const identity = useQuery(identityQuery);
+  const identity = useIdentity();
   return (
     <ButtonLink
       href={identity.data === null ? "/register" : "/app"}

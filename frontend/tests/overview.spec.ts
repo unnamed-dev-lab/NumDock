@@ -33,8 +33,8 @@ test("seeded overview shows organization-scoped samples, period changes and loca
   ).toBeVisible();
   await expect(dashboard.locator("tbody tr")).toHaveCount(30);
   await expect(
-    dashboard.getByText("Not configured", { exact: true }),
-  ).toBeVisible();
+    dashboard.getByText("OpenTelemetry", { exact: true }),
+  ).toHaveCount(0);
   await expect(
     dashboard.locator("[data-slot=chart] svg").first(),
   ).toBeVisible();
@@ -104,7 +104,6 @@ test("seeded overview shows organization-scoped samples, period changes and loca
 test("a new organization has an honest empty overview", async ({ page }) => {
   await page.goto("/register");
   await page.getByLabel("Full name").fill("Overview Tester");
-  await page.getByLabel("Workspace name").fill("Empty Overview Workspace");
   await page
     .getByLabel("Email address")
     .fill(`overview-${Date.now()}@example.test`);
@@ -112,7 +111,7 @@ test("a new organization has an honest empty overview", async ({ page }) => {
     .getByLabel("Password", { exact: true })
     .fill("overview browser test password");
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page).toHaveURL(/\/app$/);
   const dashboard = page.getByRole("region", {

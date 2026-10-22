@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useResourceList, type ResourceItems } from "@/hooks/api/resources";
+import { useRefreshAccount } from "@/hooks/api/cache";
+import { useCommandMutation } from "@/hooks/api/commands";
 import { useSearchParams, Navigate } from "react-router";
 import { useTranslation } from "react-i18next";
 import { useForm, Controller } from "react-hook-form";
@@ -23,26 +25,17 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { DataTable } from "@/components/data-table/data-table";
 import { StatusBadge, InlineNote } from "@/features/workspace/workspace-ui";
 import { AlertCircle, Check } from "lucide-react";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import type { TranslationKey } from "@/lib/i18n";
-import {
-  execute,
-  readWorkspace,
-  useOperations,
-  type Action,
-  type Command,
-  type Snapshot,
-  type View,
-} from "./runtime";
+import { useOperations, type Action, type Command, type View } from "./runtime";
 export function ModeNotice() {
   const { t } = useTranslation();
   const { summary, summaryError, organization } = useOperations();
-  const client = useQueryClient();
+  const refreshAccount = useRefreshAccount(organization?.id ?? "");
   if (!summaryError && summary?.mode !== "disabled") return null;
   return (
     <div className="mb-6">
@@ -59,11 +52,7 @@ export function ModeNotice() {
             variant="outline"
             size="sm"
             className="ml-3"
-            onClick={() =>
-              void client.invalidateQueries({
-                queryKey: ["operations", organization?.id],
-              })
-            }
+            onClick={() => void refreshAccount()}
           >
             {t("workspace.tryAgain")}
           </Button>
@@ -74,19 +63,22 @@ export function ModeNotice() {
 }
 export function useFormat() {
   const { i18n } = useTranslation();
-  return {
-    money: (minor: number) =>
-      new Intl.NumberFormat(i18n.language, {
-        style: "currency",
-        currency: "USD",
-      }).format(minor / 100),
-    date: (value: string) =>
-      new Intl.DateTimeFormat(i18n.language, {
-        dateStyle: "medium",
-        timeStyle: "short",
-        timeZone: "UTC",
-      }).format(new Date(value)) + " UTC",
-  };
+  const locale = i18n.resolvedLanguage ?? i18n.language;
+  return useMemo(() => {
+    const money = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: "USD",
+    });
+    const date = new Intl.DateTimeFormat(locale, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    });
+    return {
+      money: (minor: number) => money.format(minor / 100),
+      date: (value: string) => date.format(new Date(value)) + " UTC",
+    };
+  }, [locale]);
 }
 const statusKeys: Record<string, TranslationKey> = {
   active: "workspace.active",
@@ -102,6 +94,8 @@ const statusKeys: Record<string, TranslationKey> = {
   read: "workspace.opsRead",
   unread: "workspace.opsUnread",
   mock_credit: "workspace.opsCredit",
+  payment_credit: "workspace.opsCredit",
+  canceled: "workspace.paymentCanceled",
   reserve: "workspace.opsReserve",
   settle: "workspace.opsSettle",
   release: "workspace.opsUnreserve",
@@ -151,20 +145,16 @@ export function ActionDialog({
   build?: (v: Record<string, string | boolean>) => Command;
   children?: ReactNode;
   description?: string;
-  onComplete?: () => void;
+  onComplete?: (result: import("./runtime").Result) => void;
 }) {
   const { t } = useTranslation();
   const { organization, summary } = useOperations();
-  const client = useQueryClient();
   const [open, setOpen] = useState(false);
   const target = useRef({ build, id, org: organization?.id, onComplete });
   const directFingerprint = useRef("");
   const key = useRef("");
   const running = useRef(false);
-  const immediate =
-    action === "simulate" ||
-    action === "test_webhook" ||
-    action === "toggle_webhook";
+  const immediate = action === "simulate";
   const [openedDescription, setOpenedDescription] = useState(description);
   const schema = z.object(
     Object.fromEntries(
@@ -205,27 +195,11 @@ export function ActionDialog({
       ]),
     ),
   });
-  const mutation = useMutation({
-    gcTime: 0,
-    mutationFn: (v: Record<string, string | boolean>) =>
-      execute(
-        target.current.org!,
-        action,
-        target.current.build(v),
-        key.current,
-        target.current.id,
-      ),
+  const mutation = useCommandMutation({
     onSuccess: (result) => {
-      void client.invalidateQueries({
-        queryKey: ["operations", target.current.org],
-      });
-      void client.invalidateQueries({ queryKey: ["catalog"] });
-      void client.invalidateQueries({
-        queryKey: ["overview", target.current.org],
-      });
-      if (!result.secret && result.status !== "failed") {
+      if (result.status !== "failed") {
         setOpen(false);
-        target.current.onComplete?.();
+        target.current.onComplete?.(result);
       }
     },
     onSettled: () => {
@@ -235,7 +209,13 @@ export function ActionDialog({
   const submitAction = (values: Record<string, string | boolean>) => {
     if (running.current) return;
     running.current = true;
-    mutation.mutate(values);
+    mutation.mutate({
+      org: target.current.org!,
+      action,
+      body: target.current.build(values),
+      key: key.current,
+      id: target.current.id,
+    });
   };
   const disabled =
     !organization || organization.role === "member" || summary?.mode !== "mock";
@@ -244,6 +224,7 @@ export function ActionDialog({
       <Button
         variant="outline"
         size="sm"
+        className="min-h-11 sm:min-h-9"
         disabled={disabled || mutation.isPending}
         onClick={() => {
           if (running.current) return;
@@ -315,34 +296,6 @@ export function ActionDialog({
                     : "workspace.opsSuccess",
                 )}
               </p>
-              {mutation.data.secret ? (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    {t("workspace.opsSecretOnce")}
-                  </p>
-                  <Textarea
-                    readOnly
-                    aria-label={t("workspace.opsSecret")}
-                    className="w-full break-all rounded-md border border-border bg-muted p-3 font-mono text-xs"
-                    value={mutation.data.secret}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(
-                          mutation.data.secret!,
-                        );
-                      } catch {
-                        /* The selectable field remains available. */
-                      }
-                    }}
-                  >
-                    {t("workspace.opsCopy")}
-                  </Button>
-                </>
-              ) : null}
               <DialogFooter>
                 <Button
                   onClick={() => {
@@ -457,22 +410,20 @@ export function ActionDialog({
     </>
   );
 }
-export function WorkspaceTable<T>({
+export function WorkspaceTable<R extends View>({
   view,
-  select,
   columns,
   statuses = [],
   toolbar,
 }: {
-  view: View;
-  select: (s: Snapshot) => T[];
-  columns: ColumnDef<T>[];
+  view: R;
+  columns: ColumnDef<ResourceItems[R][number]>[];
   statuses?: { value: string; label: string }[];
   toolbar?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { organization, summaryError } = useOperations();
-  const client = useQueryClient();
+  const refreshAccount = useRefreshAccount(organization?.id ?? "");
   const [params, setParams] = useSearchParams();
   const raw = Number(params.get(`${view}Offset`) ?? 0);
   const offset = Number.isInteger(raw) && raw >= 0 ? Math.min(raw, 100000) : 0;
@@ -481,28 +432,11 @@ export function WorkspaceTable<T>({
   const limit = [10, 20, 30, 50].includes(requestedLimit) ? requestedLimit : 20;
   const search =
     view === "numbers" ? (params.get("numbersSearch") ?? "").slice(0, 80) : "";
-  const query = useQuery({
-    queryKey: [
-      "operations",
-      organization?.id,
-      view,
-      offset,
-      status,
-      limit,
-      search,
-    ],
-    queryFn: ({ signal }) =>
-      readWorkspace(
-        organization!.id,
-        view,
-        limit,
-        offset,
-        status,
-        search,
-        signal,
-      ),
-    enabled: !!organization,
-    retry: 1,
+  const query = useResourceList(organization?.id ?? "", view, {
+    limit,
+    offset,
+    status,
+    q: search,
   });
   const update = (name: string, value: string) =>
     setParams(
@@ -512,10 +446,10 @@ export function WorkspaceTable<T>({
         if (name !== `${view}Offset`) n.delete(`${view}Offset`);
         return n;
       },
-      { preventScrollReset: true },
+      { replace: true, preventScrollReset: true },
     );
   useEffect(() => {
-    if (!query.data) return;
+    if (!query.data || query.isPlaceholderData) return;
     const last = Math.max(0, Math.ceil(query.data.total / limit) - 1) * limit;
     if (offset > last)
       setParams(
@@ -526,7 +460,7 @@ export function WorkspaceTable<T>({
         },
         { replace: true, preventScrollReset: true },
       );
-  }, [query.data, limit, offset, view, setParams]);
+  }, [query.data, query.isPlaceholderData, limit, offset, view, setParams]);
   if (query.error instanceof ApiError && query.error.status === 401)
     return <Navigate to="/login" replace />;
   return (
@@ -538,7 +472,10 @@ export function WorkspaceTable<T>({
             onValueChange={(v) => update(`${view}Status`, v ?? "")}
             items={[{ value: "", label: t("workspace.opsAll") }, ...statuses]}
           >
-            <SelectTrigger aria-label={t("workspace.opsFilterStatus")}>
+            <SelectTrigger
+              className="h-11 sm:h-9"
+              aria-label={t("workspace.opsFilterStatus")}
+            >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -578,9 +515,7 @@ export function WorkspaceTable<T>({
             variant="outline"
             onClick={() => {
               void query.refetch();
-              void client.invalidateQueries({
-                queryKey: ["operations", organization?.id, "summary"],
-              });
+              void refreshAccount();
             }}
           >
             {t("workspace.tryAgain")}
@@ -588,8 +523,10 @@ export function WorkspaceTable<T>({
         </div>
       ) : query.data.mode === "disabled" ? null : (
         <DataTable
-          data={select(query.data)}
+          data={query.data.items}
           columns={columns}
+          getRowId={(row) => row.id}
+          pending={query.isPlaceholderData}
           manual
           rowCount={query.data.total}
           pageIndex={Math.floor(offset / limit)}

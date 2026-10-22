@@ -1,9 +1,7 @@
 import { useOperations } from "@/features/operations/runtime";
 import { WalletSummary } from "@/features/operations/billing";
-import { useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TextCascade } from "@/components/motion/text-cascade";
-import { overviewQuery } from "./overview-query";
+import { useOverview } from "@/hooks/api/overview";
 import { Navigate, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Activity, LoaderCircle, RefreshCw } from "lucide-react";
@@ -16,18 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ApiError, errorMessage, type Identity } from "@/lib/api/client";
-import { DetailRow, EmptyState } from "./workspace-ui";
+import { ApiError, errorMessage } from "@/lib/api/client";
+import { EmptyState } from "./workspace-ui";
 import { OverviewChart } from "./overview-chart";
 
-export function OverviewDashboard({ identity }: { identity: Identity }) {
+export function OverviewDashboard() {
   const { t, i18n } = useTranslation();
-  const { summary: current } = useOperations();
+  const { summary: current, organization } = useOperations();
   const [params, setParams] = useSearchParams();
-  const organization =
-    identity.organizations.find(
-      (item) => item.id === params.get("organization"),
-    ) ?? identity.organizations[0];
   const days = params.get("days") === "7" ? 7 : 30;
   const setFilter = (key: string, value: string) =>
     setParams(
@@ -38,25 +32,7 @@ export function OverviewDashboard({ identity }: { identity: Identity }) {
       },
       { replace: true, preventScrollReset: true },
     );
-  const client = useQueryClient();
-  const summary = useQuery({
-    ...overviewQuery(organization?.id ?? "", days),
-    enabled: Boolean(organization),
-    // Keep the chart mounted during a period change, never across tenants.
-    placeholderData: (previous, previousQuery) =>
-      previousQuery?.queryKey[1] === organization?.id ? previous : undefined,
-  });
-  useEffect(() => {
-    if (
-      !organization ||
-      summary.data?.mode !== "mock" ||
-      summary.isPlaceholderData
-    )
-      return;
-    void client.prefetchQuery(
-      overviewQuery(organization.id, days === 7 ? 30 : 7),
-    );
-  }, [client, organization, days, summary.data, summary.isPlaceholderData]);
+  const summary = useOverview(organization?.id ?? "", days);
   if (summary.error instanceof ApiError && summary.error.status === 401)
     return <Navigate to="/login" replace />;
   if (!organization) return null;
@@ -137,29 +113,6 @@ export function OverviewDashboard({ identity }: { identity: Identity }) {
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {identity.organizations.length > 1 ? (
-            <Select
-              items={identity.organizations.map((o) => ({
-                value: o.id,
-                label: o.name,
-              }))}
-              value={organization.id}
-              onValueChange={(value) => {
-                if (value) setFilter("organization", value);
-              }}
-            >
-              <SelectTrigger aria-label={t("workspace.organization")}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {identity.organizations.map((o) => (
-                  <SelectItem key={o.id} value={o.id}>
-                    {o.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
           <Select
             items={ranges}
             value={String(days)}
@@ -269,7 +222,7 @@ export function OverviewDashboard({ identity }: { identity: Identity }) {
               )}
             />
           )}
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="min-w-0">
             {data.mode === "mock" ? (
               <Card className="min-w-0 rounded-lg shadow-none ring-1 ring-border">
                 <CardHeader>
@@ -285,41 +238,6 @@ export function OverviewDashboard({ identity }: { identity: Identity }) {
                 </CardContent>
               </Card>
             ) : null}
-            <Card className="h-fit rounded-lg shadow-none ring-1 ring-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <Activity className="size-4" aria-hidden="true" />
-                  OpenTelemetry
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl>
-                  <DetailRow
-                    label={t("workspace.overviewInstrumentation")}
-                    value={t(
-                      data.telemetry.instrumented
-                        ? "workspace.overviewInstrumented"
-                        : "workspace.overviewOtelOff",
-                    )}
-                  />
-                  <DetailRow
-                    label={t("workspace.overviewExporter")}
-                    value={t(
-                      data.telemetry.exporter_configured
-                        ? "workspace.overviewExporterConfigured"
-                        : "workspace.overviewExporterMissing",
-                    )}
-                  />
-                  <DetailRow
-                    label={t("workspace.overviewSignals")}
-                    value={t("workspace.overviewTracesMetrics")}
-                  />
-                </dl>
-                <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                  {t("workspace.overviewTelemetryNote")}
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </>
       ) : null}

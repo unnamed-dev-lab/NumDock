@@ -82,10 +82,10 @@ test("Chinese first paint works without JavaScript", async ({
   await page.goto(`${baseURL}/register`);
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
   await expect(
-    page.getByRole("heading", { name: "创建你的工作区", level: 1 }),
+    page.getByRole("heading", { name: "创建账户", level: 1 }),
   ).toBeVisible();
   await expect(page.getByLabel("电子邮箱")).toBeVisible();
-  await expect(page).toHaveTitle("创建工作区 · NumDock");
+  await expect(page).toHaveTitle("创建账户 · NumDock");
   await context.close();
 });
 
@@ -106,7 +106,7 @@ test("switching preserves form values and translates existing validation errors"
     "alex@example.com",
   );
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(
     page.getByText("Enter your name.", { exact: true }),
@@ -114,13 +114,13 @@ test("switching preserves form values and translates existing validation errors"
   await switchLanguage(page, "简体中文");
   await expect(page.getByText("请输入姓名。", { exact: true })).toBeVisible();
   await expect(page.getByLabel("电子邮箱")).toHaveValue("alex@example.com");
-  await expect(page).toHaveTitle("创建工作区 · NumDock");
+  await expect(page).toHaveTitle("创建账户 · NumDock");
   await expect(
     page.getByRole("button", { name: "主题：跟随系统" }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "创建你的工作区", level: 1 }),
+    page.getByRole("heading", { name: "创建账户", level: 1 }),
   ).toBeVisible();
   const cookie = (await page.context().cookies()).find(
     (cookie) => cookie.name === "numdock.locale",
@@ -192,7 +192,7 @@ test("workspace routes, roles, counts, dates and mobile controls are localized",
       name: "Alex Morgan",
       email: `i18n-${Date.now()}@example.test`,
       password: "i18n browser test passphrase",
-      organization_name: "Harbor 1",
+      organization_name: "Overview",
     },
   });
   expect(registration.status()).toBe(201);
@@ -205,14 +205,16 @@ test("workspace routes, roles, counts, dates and mobile controls are localized",
       timeZone: "UTC",
     }).format(new Date(identity.user.created_at));
   await page.goto("/app");
-  await expect(page.getByRole("heading", { name: "Harbor 1" })).toBeVisible();
-  await expect(page.getByText("1 workspace", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Overview", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("1 workspace", { exact: true })).toHaveCount(0);
+  await page.goto("/app/settings");
   await expect(
     page.getByText(date("en"), { exact: true }).first(),
   ).toBeVisible();
   await switchLanguage(page, "简体中文");
-  await expect(page.getByText("1 个工作区", { exact: true })).toBeVisible();
-  await expect(page.getByText("所有者", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("所有者", { exact: true })).toHaveCount(0);
   await expect(
     page.getByText(date("zh-CN"), { exact: true }).first(),
   ).toBeVisible();
@@ -220,7 +222,6 @@ test("workspace routes, roles, counts, dates and mobile controls are localized",
     ["numbers", "号码"],
     ["messages", "消息"],
     ["billing", "账单"],
-    ["developers", "API 与 Webhook"],
     ["settings", "设置"],
   ];
   for (const [path, title] of routes) {
@@ -287,7 +288,7 @@ test("missing routes preserve Chinese SSR, status and recovery controls", async 
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
   await expect(page.getByText("页面不存在", { exact: true })).toBeVisible();
   await expect(page).toHaveTitle("页面不存在 · NumDock");
-  await expect(page.getByRole("link", { name: "打开工作区" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "我的账户" })).toHaveAttribute(
     "href",
     "/app",
   );

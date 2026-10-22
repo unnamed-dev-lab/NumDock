@@ -1,11 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-export type AuthDraftField = "name" | "organization_name" | "email";
+export type AuthDraftField = "name" | "email";
 
 type AuthDraftState = {
   name: string;
-  organization_name: string;
   email: string;
   setField: (field: AuthDraftField, value: string) => void;
   clear: () => void;
@@ -13,7 +12,6 @@ type AuthDraftState = {
 
 const initial = {
   name: "",
-  organization_name: "",
   email: "",
 };
 
@@ -29,9 +27,8 @@ export const useAuthDraftStore = create<AuthDraftState>()(
       version: 1,
       storage: createJSONStorage(() => localStorage),
       skipHydration: true,
-      partialize: ({ name, organization_name, email }) => ({
+      partialize: ({ name, email }) => ({
         name,
-        organization_name,
         email,
       }),
     },

@@ -1,19 +1,26 @@
 import { PurchaseNumber } from "@/features/operations/numbers";
 import { useEffect, useMemo } from "react";
-import { Navigate } from "react-router";
-import { useQuery } from "@tanstack/react-query";
+import { Navigate, useNavigate } from "react-router";
+import { useCatalogNumbers, type CatalogInitial } from "@/hooks/api/catalog";
 import { useTranslation } from "react-i18next";
 import { FlaskConical, LoaderCircle } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
 import { Button } from "@/components/motion/button/base";
 import { EmptyState } from "@/features/workspace/workspace-ui";
-import { api, ApiError, errorMessage, unwrap } from "@/lib/api/client";
+import { ApiError, errorMessage } from "@/lib/api/client";
 import { getCatalogColumns } from "./columns";
 import { CatalogToolbar } from "./catalog-toolbar";
 import { useCatalogParams } from "./use-catalog-params";
 
-export function CatalogView() {
+export function CatalogView({
+  publicBrowsing = false,
+  initial,
+}: {
+  publicBrowsing?: boolean;
+  initial?: CatalogInitial | null;
+}) {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
   const filters = useCatalogParams();
   const { query, update } = filters;
   const columns = useMemo(
@@ -21,6 +28,7 @@ export function CatalogView() {
       ...getCatalogColumns(t, i18n.resolvedLanguage ?? "en"),
       {
         id: "actions",
+        meta: { label: t("workspace.opsActions") },
         enableSorting: false,
         header: () => t("workspace.opsActions"),
         cell: ({
@@ -29,34 +37,51 @@ export function CatalogView() {
           row: {
             original: { id: string; e164: string; monthly_fee_minor: number };
           };
-        }) => (
-          <PurchaseNumber
-            id={row.original.id}
-            e164={row.original.e164}
-            price={row.original.monthly_fee_minor}
-          />
-        ),
+        }) =>
+          publicBrowsing ? (
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-h-11 md:min-h-9"
+              onClick={() =>
+                void navigate(
+                  "/app/numbers?tab=catalog&q=" +
+                    encodeURIComponent(row.original.e164),
+                )
+              }
+            >
+              {t("home.chooseNumber")}
+            </Button>
+          ) : (
+            <PurchaseNumber
+              id={row.original.id}
+              e164={row.original.e164}
+              price={row.original.monthly_fee_minor}
+            />
+          ),
       },
     ],
-    [t, i18n.resolvedLanguage],
+    [t, i18n.resolvedLanguage, publicBrowsing, navigate],
   );
-  const catalog = useQuery({
-    queryKey: ["catalog", "numbers", query],
-    queryFn: async ({ signal }) =>
-      unwrap(
-        await api.GET("/v1/catalog/numbers", { params: { query }, signal }),
-      ),
-    staleTime: 30_000,
-    retry: (count, error) =>
-      !(error instanceof ApiError && error.status < 500) && count < 1,
-  });
+  const catalog = useCatalogNumbers(query, initial);
   useEffect(() => {
-    if (!catalog.data || catalog.data.mode !== "mock") return;
+    if (
+      !catalog.data ||
+      catalog.isPlaceholderData ||
+      catalog.data.mode !== "mock"
+    )
+      return;
     const limit = query.limit ?? 10;
     const lastOffset =
       Math.max(0, Math.ceil(catalog.data.total / limit) - 1) * limit;
     if ((query.offset ?? 0) > lastOffset) update({ offset: lastOffset }, false);
-  }, [catalog.data, query.limit, query.offset, update]);
+  }, [
+    catalog.data,
+    catalog.isPlaceholderData,
+    query.limit,
+    query.offset,
+    update,
+  ]);
   if (catalog.error instanceof ApiError && catalog.error.status === 401)
     return <Navigate to="/login" replace />;
   return (
@@ -66,6 +91,11 @@ export function CatalogView() {
       aria-busy={catalog.isFetching}
     >
       <CatalogToolbar {...filters} />
+      {publicBrowsing && catalog.data?.mode === "mock" ? (
+        <p className="text-xs text-muted-foreground">
+          {t("home.developmentCatalog")}
+        </p>
+      ) : null}
       {catalog.isPending ? (
         <p
           role="status"
@@ -99,6 +129,9 @@ export function CatalogView() {
         />
       ) : (
         <DataTable
+          pending={catalog.isPlaceholderData}
+          label={t("workspace.catalog")}
+          getRowId={(row) => row.id}
           columns={columns}
           data={catalog.data.items}
           manual

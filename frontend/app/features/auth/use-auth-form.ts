@@ -1,17 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router";
+import { workspaceReturnTo } from "./return-to";
+import { useIdentity, useAuthenticate } from "@/hooks/api/auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import {
-  api,
-  csrfHeaders,
-  errorMessage,
-  identityQuery,
-  unwrap,
-} from "@/lib/api/client";
+import { errorMessage } from "@/lib/api/client";
 import { useAuthDraftStore } from "./auth-draft-store";
 
 export type AuthMode = "login" | "register";
@@ -25,7 +20,6 @@ function schema(registering: boolean) {
         return length >= 12 && length <= 128;
       }, "auth.validationPassword"),
       name: z.string().trim().max(100, "auth.validationMaxLength"),
-      organization_name: z.string().trim().max(100, "auth.validationMaxLength"),
     })
     .superRefine((value, context) => {
       if (registering && !value.name)
@@ -33,12 +27,6 @@ function schema(registering: boolean) {
           code: "custom",
           path: ["name"],
           message: "auth.validationName",
-        });
-      if (registering && !value.organization_name)
-        context.addIssue({
-          code: "custom",
-          path: ["organization_name"],
-          message: "auth.validationWorkspace",
         });
     });
 }
@@ -49,12 +37,13 @@ export function useAuthForm(mode: AuthMode) {
   const { t } = useTranslation();
   const registering = mode === "register";
   const navigate = useNavigate();
-  const client = useQueryClient();
-  const current = useQuery({ ...identityQuery, refetchOnMount: "always" });
+  const [params] = useSearchParams();
+  const returnTo = workspaceReturnTo(params.get("returnTo"));
+  const current = useIdentity({ fresh: true });
   const errorRef = useRef<HTMLParagraphElement>(null);
   const form = useForm<AuthValues>({
     resolver: zodResolver(schema(registering)),
-    defaultValues: { email: "", password: "", name: "", organization_name: "" },
+    defaultValues: { email: "", password: "", name: "" },
   });
   const [draftReady, setDraftReady] = useState(false);
 
@@ -67,9 +56,6 @@ export function useAuthForm(mode: AuthMode) {
         const draft = useAuthDraftStore.getState();
         if (registering) {
           form.setValue("name", draft.name, { shouldDirty: false });
-          form.setValue("organization_name", draft.organization_name, {
-            shouldDirty: false,
-          });
         }
         form.setValue("email", draft.email, { shouldDirty: false });
         setDraftReady(true);
@@ -89,41 +75,21 @@ export function useAuthForm(mode: AuthMode) {
       if (registering && values.name !== undefined) {
         draft.setField("name", values.name ?? "");
       }
-      if (registering && values.organization_name !== undefined) {
-        draft.setField("organization_name", values.organization_name ?? "");
-      }
       if (values.email !== undefined)
         draft.setField("email", values.email ?? "");
     });
     return () => subscription.unsubscribe();
   }, [draftReady, form, registering]);
 
-  const mutation = useMutation({
-    mutationFn: async (values: AuthValues) => {
-      const params = { header: await csrfHeaders() };
-      if (registering)
-        return unwrap(
-          await api.POST("/v1/auth/register", { params, body: values }),
-        );
-      return unwrap(
-        await api.POST("/v1/auth/login", {
-          params,
-          body: { email: values.email, password: values.password },
-        }),
-      );
-    },
-    onSuccess: (identity) => {
-      useAuthDraftStore.getState().clear();
-      client.clear();
-      client.setQueryData(identityQuery.queryKey, identity);
-      void navigate("/app", { replace: true });
-    },
+  const mutation = useAuthenticate(mode, () => {
+    useAuthDraftStore.getState().clear();
+    void navigate(returnTo, { replace: true });
   });
 
   useEffect(() => {
     if (current.data && !current.isFetching && !current.isError)
-      void navigate("/app", { replace: true });
-  }, [current.data, current.isFetching, current.isError, navigate]);
+      void navigate(returnTo, { replace: true });
+  }, [current.data, current.isFetching, current.isError, navigate, returnTo]);
   const rootError = form.formState.errors.root
     ? errorMessage(mutation.error, t)
     : undefined;

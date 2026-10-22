@@ -8,22 +8,21 @@ test("registration, persistent session, revocation and sign in", async ({
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/register");
   await page.getByLabel("Full name").fill("Alex Morgan");
-  await page.getByLabel("Workspace name").fill("Harbor Studio");
   await page.getByLabel("Email address").fill(email);
   await page
     .getByLabel("Password", { exact: true })
     .fill("a browser test passphrase");
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page).toHaveURL(/\/app$/);
   await expect(
-    page.getByRole("heading", { name: "Harbor Studio" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await expect(page.getByText(email).last()).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "Harbor Studio" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await page.screenshot({
     path: "test-results/workspace-desktop.png",
@@ -31,7 +30,7 @@ test("registration, persistent session, revocation and sign in", async ({
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("heading", { name: "Harbor Studio" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -100,18 +99,17 @@ test("workspace modules show persisted empty states and redirect old routes", as
   const email = `states-${Date.now()}@example.com`;
   await page.goto("/register");
   await page.getByLabel("Full name").fill("State Tester");
-  await page.getByLabel("Workspace name").fill("State Studio");
   await page.getByLabel("Email address").fill(email);
   await page
     .getByLabel("Password", { exact: true })
     .fill("a state test passphrase");
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page).toHaveURL(/\/app$/);
 
   await expect(
-    page.getByRole("heading", { name: "State Studio", exact: true }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("LIVE API", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Bandwidth", { exact: true })).toHaveCount(0);
@@ -120,7 +118,6 @@ test("workspace modules show persisted empty states and redirect old routes", as
     ["/app/numbers", "Numbers", "No records in this view."],
     ["/app/messages", "Messages", "No records in this view."],
     ["/app/billing", "Billing", "Available balance"],
-    ["/app/developers", "API & webhooks", "Create API key"],
     ["/app/settings", "Settings", email],
   ];
 
@@ -136,7 +133,6 @@ test("workspace modules show persisted empty states and redirect old routes", as
     ["/app/catalog", /\/app\/numbers$/],
     ["/app/inbox", /\/app\/messages$/],
     ["/app/orders", /\/app\/billing$/],
-    ["/app/keys", /\/app\/developers$/],
     ["/app/admin", /\/app\/settings$/],
   ];
 
@@ -149,7 +145,7 @@ test("workspace modules show persisted empty states and redirect old routes", as
   await page.getByRole("menuitem", { name: "Sign out", exact: true }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto("/app/numbers");
-  await expect(page).toHaveURL(/\/login$/);
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fapp%2Fnumbers$/);
 });
 
 test("theme uses native transitions, persists, follows system and supports keyboard", async ({
@@ -232,22 +228,22 @@ test("authenticated workspace is reachable after SSR session validation", async 
       email,
       password: "a workspace test passphrase",
       name: "Workspace Tester",
-      organization_name: "Workspace Studio",
+      organization_name: "Overview",
     },
   });
   expect(registration.status()).toBe(201);
 
   await page.goto("/app");
   await expect(
-    page.getByRole("heading", { name: "Workspace Studio" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
 
   await page.getByRole("button", { name: /^Numbers/ }).click();
-  await expect(page).toHaveURL(/\/app\/numbers\?organization=/);
+  await expect(page).toHaveURL(/\/app\/numbers$/);
   await page.getByRole("button", { name: "Overview", exact: true }).click();
-  await expect(page).toHaveURL(/\/app\?organization=/);
+  await expect(page).toHaveURL(/\/app$/);
   await expect(
-    page.getByRole("heading", { name: "Workspace Studio" }),
+    page.getByRole("heading", { name: "Overview", exact: true }),
   ).toBeVisible();
 });
 
@@ -293,7 +289,7 @@ test("validation, network error and narrow screen", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/register");
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(
     page.getByText("Enter your name.", { exact: true }),

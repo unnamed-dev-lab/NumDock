@@ -18,6 +18,7 @@ export function getCatalogColumns(
   return [
     {
       accessorKey: "e164",
+      meta: { label: t("workspace.numberAndRegion") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -37,6 +38,7 @@ export function getCatalogColumns(
     },
     {
       accessorKey: "number_type",
+      meta: { label: t("workspace.lineType") },
       enableSorting: false,
       header: () => t("workspace.lineType"),
       cell: ({ row }) =>
@@ -50,11 +52,13 @@ export function getCatalogColumns(
     },
     {
       accessorKey: "provider",
+      meta: { label: t("workspace.catalogProvider") },
       enableSorting: false,
       header: () => t("workspace.catalogProvider"),
     },
     {
       accessorKey: "capabilities",
+      meta: { label: t("workspace.communicationCapabilities") },
       enableSorting: false,
       header: () => t("workspace.communicationCapabilities"),
       cell: ({ row }) => (
@@ -75,6 +79,7 @@ export function getCatalogColumns(
     },
     {
       accessorKey: "monthly_fee_minor",
+      meta: { label: t("workspace.monthlyFee") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -93,6 +98,7 @@ export function getCatalogColumns(
     },
     {
       accessorKey: "inbound_sms_fee_micros",
+      meta: { label: t("workspace.inboundSmsRate") },
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -111,14 +117,6 @@ export function getCatalogColumns(
         ) : (
           t("workspace.notApplicable")
         ),
-    },
-    {
-      id: "source",
-      enableSorting: false,
-      header: () => t("workspace.catalogSource"),
-      cell: () => (
-        <Badge variant="outline">{t("workspace.catalogMockOnly")}</Badge>
-      ),
     },
   ];
 }

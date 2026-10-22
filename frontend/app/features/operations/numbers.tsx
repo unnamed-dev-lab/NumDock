@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useTranslation } from "react-i18next";
@@ -8,7 +9,7 @@ import {
   useFormat,
   type FormField,
 } from "./shared";
-import type { Snapshot } from "./runtime";
+import type { ResourceItems } from "./runtime";
 export function PurchaseNumber({
   id,
   e164,
@@ -70,62 +71,66 @@ export function PurchaseNumber({
 export function NumbersTable() {
   const { t } = useTranslation();
   const { money, date } = useFormat();
-  const columns: ColumnDef<Snapshot["numbers"][number]>[] = [
-    {
-      accessorKey: "e164",
-      header: t("workspace.opsNumber"),
-      cell: ({ row }) => (
-        <div>
-          <p className="font-mono font-medium">{row.original.e164}</p>
-          <p className="text-xs text-muted-foreground">
-            {row.original.country_code} ·{" "}
-            {row.original.capabilities.join(" / ")}
-          </p>
-        </div>
-      ),
-    },
-    {
-      accessorKey: "status",
-      header: t("workspace.opsStatus"),
-      cell: ({ row }) => <State value={row.original.status} />,
-    },
-    {
-      accessorKey: "monthly_fee_minor",
-      header: t("workspace.opsPrice"),
-      cell: ({ row }) => money(row.original.monthly_fee_minor),
-    },
-    {
-      accessorKey: "expires_at",
-      header: t("workspace.opsExpires"),
-      cell: ({ row }) => date(row.original.expires_at),
-    },
-    {
-      id: "actions",
-      header: t("workspace.opsActions"),
-      cell: ({ row }) =>
-        row.original.status === "active" ? (
-          <div className="flex gap-2">
-            {row.original.capabilities.includes("sms") ? (
-              <ActionDialog
-                action="simulate"
-                title={t("workspace.opsSimulate")}
-                build={() => ({ lease_id: row.original.id })}
-              />
-            ) : null}
-            <ActionDialog
-              action="release"
-              id={row.original.id}
-              title={t("workspace.opsRelease")}
-              description={t("workspace.opsReleaseDescription")}
-            />
+  const columns = useMemo<ColumnDef<ResourceItems["numbers"][number]>[]>(
+    () => [
+      {
+        accessorKey: "e164",
+        header: t("workspace.opsNumber"),
+        cell: ({ row }) => (
+          <div>
+            <p className="font-mono font-medium">{row.original.e164}</p>
+            <p className="text-xs text-muted-foreground">
+              {row.original.country_code} ·{" "}
+              {row.original.capabilities.join(" / ")}
+            </p>
           </div>
-        ) : null,
-    },
-  ];
+        ),
+      },
+      {
+        accessorKey: "status",
+        header: t("workspace.opsStatus"),
+        cell: ({ row }) => <State value={row.original.status} />,
+      },
+      {
+        accessorKey: "monthly_fee_minor",
+        header: t("workspace.opsPrice"),
+        cell: ({ row }) => money(row.original.monthly_fee_minor),
+      },
+      {
+        accessorKey: "expires_at",
+        header: t("workspace.opsExpires"),
+        cell: ({ row }) => date(row.original.expires_at),
+      },
+      {
+        id: "actions",
+        header: t("workspace.opsActions"),
+        cell: ({ row }) =>
+          row.original.status === "active" ? (
+            <div className="flex gap-2">
+              {row.original.capabilities.includes("sms") ? (
+                <ActionDialog
+                  action="simulate"
+                  title={t("workspace.opsSimulate")}
+                  build={() => ({ lease_id: row.original.id })}
+                />
+              ) : null}
+              <ActionDialog
+                action="release"
+                id={row.original.id}
+                title={t("workspace.opsRelease")}
+                description={t("workspace.opsReleaseDescription", {
+                  number: row.original.e164,
+                })}
+              />
+            </div>
+          ) : null,
+      },
+    ],
+    [t, money, date],
+  );
   return (
     <WorkspaceTable
       view="numbers"
-      select={(s) => s.numbers}
       columns={columns}
       statuses={[
         { value: "active", label: t("workspace.active") },

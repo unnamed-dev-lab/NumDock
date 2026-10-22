@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router";
 import type { paths } from "@/lib/api/schema";
 
-type CatalogQuery = NonNullable<
+export type CatalogQuery = NonNullable<
   paths["/v1/catalog/numbers"]["get"]["parameters"]["query"]
 >;
 const filterKeys = [
@@ -29,10 +29,9 @@ function integer(
   return Number.isSafeInteger(n) && n >= min && n <= max ? n : fallback;
 }
 
-export function useCatalogParams() {
-  const [params, setParams] = useSearchParams();
+export function parseCatalogParams(params: URLSearchParams): CatalogQuery {
   const country = params.get("country") ?? "";
-  const query: CatalogQuery = {
+  return {
     q: Array.from(params.get("q") ?? "")
       .slice(0, 100)
       .join(""),
@@ -58,6 +57,11 @@ export function useCatalogParams() {
     limit: integer(params.get("limit"), 10, 1, 100),
     offset: integer(params.get("offset"), 0, 0, 2147483647),
   };
+}
+
+export function useCatalogParams() {
+  const [params, setParams] = useSearchParams();
+  const query = parseCatalogParams(params);
   const update = (
     changes: Record<string, string | number | undefined>,
     resetPage = true,

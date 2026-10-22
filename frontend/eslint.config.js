@@ -15,4 +15,32 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.recommended,
   { languageOptions: { globals: { ...globals.browser, ...globals.node } } },
+  {
+    files: ["app/**/*.{ts,tsx}"],
+    ignores: ["app/hooks/api/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@tanstack/react-query",
+              importNames: [
+                "useQuery",
+                "useMutation",
+                "useQueryClient",
+                "useQueries",
+                "useInfiniteQuery",
+                "useSuspenseQuery",
+                "queryOptions",
+                "mutationOptions",
+              ],
+              message:
+                "Declare API queries, mutations, keys and cache effects in app/hooks/api.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

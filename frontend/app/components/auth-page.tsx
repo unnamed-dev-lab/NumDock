@@ -1,4 +1,5 @@
-import { Link } from "react-router";
+import { workspaceReturnTo } from "@/features/auth/return-to";
+import { Link, useSearchParams } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Brand } from "@/components/brand";
@@ -10,6 +11,10 @@ import type { AuthMode } from "@/features/auth/use-auth-form";
 export function AuthPage({ mode }: { mode: AuthMode }) {
   const { t } = useTranslation();
   const register = mode === "register";
+  const [params] = useSearchParams();
+  const target = workspaceReturnTo(params.get("returnTo"));
+  const query =
+    target === "/app" ? "" : "?returnTo=" + encodeURIComponent(target);
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -46,9 +51,11 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
             </h2>
             <AuthForm mode={mode} />
             <p className="mt-6 border-t border-border pt-6 text-center text-sm text-muted-foreground">
-              {register ? t("auth.alreadyHaveAnAccount") : t("auth.newToNumdock")}{" "}
+              {register
+                ? t("auth.alreadyHaveAnAccount")
+                : t("auth.newToNumdock")}{" "}
               <Link
-                to={register ? "/login" : "/register"}
+                to={(register ? "/login" : "/register") + query}
                 className="rounded-sm font-medium text-primary underline-offset-4 hover:underline"
               >
                 {register ? t("auth.signIn") : t("auth.createAWorkspace")}

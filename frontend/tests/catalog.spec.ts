@@ -8,7 +8,6 @@ test("database catalog filters, pagination, states, themes and URL persistence",
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/register");
   await page.getByLabel("Full name").fill("Catalog Tester");
-  await page.getByLabel("Workspace name").fill("Catalog Browser Test");
   await page
     .getByLabel("Email address")
     .fill(`catalog-${Date.now()}@example.test`);
@@ -16,7 +15,7 @@ test("database catalog filters, pagination, states, themes and URL persistence",
     .getByLabel("Password", { exact: true })
     .fill("catalog browser test password");
   await page
-    .getByRole("button", { name: "Create workspace", exact: true })
+    .getByRole("button", { name: "Create account", exact: true })
     .click();
   await expect(page).toHaveURL(/\/app$/);
   const baseline = await (
@@ -181,7 +180,7 @@ test("database catalog filters, pagination, states, themes and URL persistence",
   await page.goto("/app/numbers?tab=catalog&q=Toronto");
   await expect(catalog.getByRole("status")).toBeVisible();
   await expect(
-    catalog.getByRole("cell", { name: "NumDock Mock", exact: true }),
+    catalog.getByRole("cell", { name: /NumDock Mock$/ }),
   ).toHaveCount(10);
   expect(errors).toEqual([]);
 });

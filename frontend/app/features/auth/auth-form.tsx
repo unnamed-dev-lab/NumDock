@@ -74,15 +74,6 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               maxLength={100}
               disabled={submitting}
             />
-            <AccountField
-              control={form.control}
-              name="organization_name"
-              label={t("auth.workspaceName")}
-              autoComplete="organization"
-              placeholder={t("auth.yourOrganization")}
-              maxLength={100}
-              disabled={submitting}
-            />
           </>
         )}
         <AccountField

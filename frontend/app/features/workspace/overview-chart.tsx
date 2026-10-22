@@ -14,14 +14,8 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import type { ColumnDef } from "@tanstack/react-table";
+import { DataTable } from "@/components/data-table/data-table";
 import type { components } from "@/lib/api/schema";
 
 type Overview = components["schemas"]["Overview"];
@@ -45,6 +39,53 @@ export const OverviewChart = memo(function OverviewChart({
       style: "currency",
       currency: data.currency,
     }).format(value / 100);
+  const columns: ColumnDef<Overview["series"][number]>[] = [
+    {
+      accessorKey: "date",
+      header: t("workspace.overviewDate"),
+      cell: ({ row }) => date(row.original.date),
+    },
+    {
+      accessorKey: "messages_received",
+      header: t("workspace.overviewReceived"),
+      meta: { align: "right" },
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums">
+          {count(row.original.messages_received)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "messages_failed",
+      header: t("workspace.overviewFailed"),
+      meta: { align: "right" },
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums">
+          {count(row.original.messages_failed)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "orders_completed",
+      header: t("workspace.overviewOrders"),
+      meta: { align: "right" },
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums">
+          {count(row.original.orders_completed)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "spend_minor",
+      header: t("workspace.overviewSpend"),
+      meta: { align: "right" },
+      cell: ({ row }) => (
+        <span className="font-mono tabular-nums">
+          {price(row.original.spend_minor)}
+        </span>
+      ),
+    },
+  ];
   const config = {
     messages_received: {
       label: t("workspace.overviewReceived"),
@@ -145,53 +186,15 @@ export const OverviewChart = memo(function OverviewChart({
         <h3 className="text-sm font-medium">
           {t("workspace.overviewDailyRows")}
         </h3>
-        <div
-          className="max-h-60 overflow-auto rounded-md border border-border focus-visible:outline-2 focus-visible:outline-ring"
-          tabIndex={0}
-          role="region"
-          aria-label={t("workspace.overviewDailyRows")}
-        >
-          <Table>
-            <TableHeader className="sticky top-0 bg-card">
-              <TableRow>
-                <TableHead>{t("workspace.overviewDate")}</TableHead>
-                <TableHead className="text-right">
-                  {t("workspace.overviewReceived")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("workspace.overviewFailed")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("workspace.overviewOrders")}
-                </TableHead>
-                <TableHead className="text-right">
-                  {t("workspace.overviewSpend")}
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...data.series].reverse().map((day) => (
-                <TableRow key={day.date}>
-                  <TableCell className="whitespace-nowrap">
-                    {date(day.date)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {count(day.messages_received)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {count(day.messages_failed)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {count(day.orders_completed)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono tabular-nums">
-                    {price(day.spend_minor)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          label={t("workspace.overviewDailyRows")}
+          columns={columns}
+          data={[...data.series].reverse()}
+          getRowId={(row) => row.date}
+          paginate={false}
+          responsiveRows={false}
+          scrollClassName="max-h-60 overflow-auto focus-visible:outline-2 focus-visible:outline-ring"
+        />
       </section>
     </div>
   );

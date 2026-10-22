@@ -6,7 +6,6 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/jackc/pgx/v5"
@@ -59,13 +58,6 @@ func (s *Store) open(value []byte, aad string) ([]byte, error) {
 	}
 	return s.cipher.Open(nil, value[:n], value[n:], []byte(aad))
 }
-func token(prefix string) (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return prefix + base64.RawURLEncoding.EncodeToString(b), nil
-}
 func hash(value string) []byte                { v := sha256.Sum256([]byte(value)); return v[:] }
 func date(value time.Time) pgtype.Timestamptz { return pgtype.Timestamptz{Time: value, Valid: true} }
 func role(ctx context.Context, q *db.Queries, a operations.Actor, write bool) (string, error) {
@@ -91,22 +83,9 @@ func (s *Store) queue(ctx context.Context, tx pgx.Tx, kind, id string, when time
 	return s.enqueue(ctx, tx, kind, id, when)
 }
 func (s *Store) emit(ctx context.Context, tx pgx.Tx, q *db.Queries, org, kind, id string) error {
-	event, err := q.EmitEvent(ctx, db.EmitEventParams{OrganizationID: org, Type: kind, ResourceID: id})
+	_, err := q.EmitEvent(ctx, db.EmitEventParams{OrganizationID: org, Type: kind, ResourceID: id})
 	if err != nil {
 		return err
-	}
-	hooks, err := q.ActiveWebhooks(ctx, org)
-	if err != nil {
-		return err
-	}
-	for _, hook := range hooks {
-		delivery, err := q.CreateDelivery(ctx, db.CreateDeliveryParams{OrganizationID: org, EndpointID: hook, EventID: event})
-		if err != nil {
-			return err
-		}
-		if err = s.queue(ctx, tx, "deliver", delivery, time.Now()); err != nil {
-			return err
-		}
 	}
 	return nil
 }
@@ -177,7 +156,6 @@ func (s *Store) Execute(ctx context.Context, a operations.Actor, key string, c o
 		return operations.Result{}, err
 	}
 	stored := result
-	stored.Secret = ""
 	encoded, err := json.Marshal(stored)
 	if err != nil {
 		return operations.Result{}, err

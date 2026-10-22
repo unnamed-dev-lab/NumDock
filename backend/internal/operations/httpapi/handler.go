@@ -46,21 +46,8 @@ func (h *Handler) auth(next http.Handler) http.Handler {
 		proceed := func(a operations.Actor) {
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), actorKey{}, a)))
 		}
-		if raw := r.Header.Get("Authorization"); raw != "" {
-			if !strings.HasPrefix(raw, "Bearer ") {
-				h.fail(w, r, operations.Fail("unauthenticated"))
-				return
-			}
-			a, err := h.store.Authenticate(r.Context(), strings.TrimPrefix(raw, "Bearer "))
-			if err != nil {
-				h.fail(w, r, err)
-				return
-			}
-			if a.OrganizationID != org {
-				h.fail(w, r, operations.Fail("not_found"))
-				return
-			}
-			proceed(a)
+		if r.Header.Get("Authorization") != "" {
+			h.fail(w, r, operations.Fail("unauthenticated"))
 			return
 		}
 		h.identity.Authenticate(http.HandlerFunc(func(w http.ResponseWriter, authed *http.Request) {
@@ -75,80 +62,102 @@ func (h *Handler) auth(next http.Handler) http.Handler {
 		})).ServeHTTP(w, r)
 	})
 }
-func permitted(a operations.Actor, scope string) bool {
-	if a.KeyID == "" {
-		return true
-	}
-	if scope == "" {
-		return false
-	}
-	for _, v := range a.Scopes {
-		if v == scope {
-			return true
-		}
-	}
-	return false
-}
 func (h *Handler) Routes(r chi.Router) {
 	r.Post("/providers/mock/webhook", h.incoming)
 	r.Route("/organizations/{organization_id}", func(r chi.Router) {
 		r.Use(h.auth)
-		r.Get("/workspace", h.read)
+		for _, resource := range []struct{ path, view string }{
+			{"/summary", "summary"}, {"/billing/wallet", "wallet"}, {"/numbers", "numbers"}, {"/messages", "messages"}, {"/orders", "orders"}, {"/billing/ledger", "ledger"}, {"/billing/payments", "payments"},
+		} {
+			r.Get(resource.path, h.resource(resource.view))
+		}
+		r.Get("/billing/payments/{resource_id}", h.payment)
 		r.Get("/messages/{resource_id}", h.message)
 		r.Get("/events/stream", h.stream)
-		routes := []struct{ method, path, kind, scope string }{{"POST", "/billing/mock-credit", "credit", ""}, {"POST", "/orders", "purchase", "numbers:write"}, {"POST", "/leases/{resource_id}/release", "release", "numbers:write"}, {"POST", "/orders/{resource_id}/refund", "refund", ""}, {"POST", "/messages/simulate", "simulate", ""}, {"DELETE", "/messages/{resource_id}", "delete_message", ""}, {"POST", "/api-keys", "create_key", ""}, {"POST", "/api-keys/{resource_id}/revoke", "revoke_key", ""}, {"POST", "/webhooks", "create_webhook", ""}, {"PATCH", "/webhooks/{resource_id}", "toggle_webhook", ""}, {"POST", "/webhooks/{resource_id}/test", "test_webhook", ""}}
-		for _, route := range routes {
-			r.MethodFunc(route.method, route.path, h.command(route.kind, route.scope))
+		for _, route := range []struct{ path, kind string }{
+			{"/billing/payments", "create_payment"}, {"/billing/payments/{resource_id}/confirm", "pay_payment"}, {"/billing/payments/{resource_id}/cancel", "cancel_payment"}, {"/orders", "purchase"}, {"/leases/{resource_id}/release", "release"}, {"/orders/{resource_id}/refund", "refund"}, {"/messages/simulate", "simulate"},
+		} {
+			r.Post(route.path, h.command(route.kind))
 		}
+		r.Delete("/messages/{resource_id}", h.command("delete_message"))
 	})
 }
-func (h *Handler) read(w http.ResponseWriter, r *http.Request) {
-	f := operations.Filter{View: r.URL.Query().Get("view"), Status: r.URL.Query().Get("status"), Search: r.URL.Query().Get("q"), Limit: 20}
-	if f.View == "" {
-		f.View = "numbers"
-	}
-	var err error
-	for key, target := range map[string]*int32{"limit": &f.Limit, "offset": &f.Offset} {
-		if raw := r.URL.Query().Get(key); raw != "" {
-			v, e := strconv.ParseInt(raw, 10, 32)
-			if e != nil {
-				err = e
+func (h *Handler) resource(view string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		f := operations.Filter{View: view, Limit: 20}
+		allowed := map[string]bool{"limit": true, "offset": true, "status": true, "q": true}
+		for key, values := range r.URL.Query() {
+			if !allowed[key] || len(values) != 1 || view == "summary" || view == "wallet" {
+				h.fail(w, r, operations.Fail("validation_failed"))
+				return
 			}
-			*target = int32(v)
+		}
+		f.Status, f.Search = r.URL.Query().Get("status"), strings.TrimSpace(r.URL.Query().Get("q"))
+		for key, target := range map[string]*int32{"limit": &f.Limit, "offset": &f.Offset} {
+			if r.URL.Query().Has(key) {
+				v, err := strconv.ParseInt(r.URL.Query().Get(key), 10, 32)
+				if err != nil || v < 0 {
+					h.fail(w, r, operations.Fail("validation_failed"))
+					return
+				}
+				*target = int32(v)
+			}
+		}
+		valid := map[string][]string{"summary": {""}, "wallet": {""}, "numbers": {"", "active", "released", "expired"}, "messages": {"", "read", "unread"}, "orders": {"", "completed", "failed", "refunded"}, "ledger": {""}, "payments": {"", "pending", "succeeded", "failed", "canceled", "expired"}}
+		found := false
+		for _, status := range valid[view] {
+			found = found || status == f.Status
+		}
+		if !found || f.Limit < 1 || f.Limit > 100 || f.Offset > 100000 || len(f.Search) > 80 {
+			h.fail(w, r, operations.Fail("validation_failed"))
+			return
+		}
+		result, err := h.store.Read(r.Context(), actor(r), f)
+		if err != nil {
+			h.fail(w, r, err)
+			return
+		}
+		switch view {
+		case "summary":
+			httpx.JSON(w, 200, operations.Summary{Mode: result.Mode, Role: result.Role, Wallet: result.Wallet, Counts: result.Counts})
+		case "wallet":
+			httpx.JSON(w, 200, operations.WalletState{Mode: result.Mode, Wallet: result.Wallet})
+		case "numbers":
+			httpx.JSON(w, 200, operations.List[operations.Number]{Items: result.Numbers, Mode: result.Mode, Total: result.Total, Limit: result.Limit, Offset: result.Offset})
+		case "messages":
+			httpx.JSON(w, 200, operations.List[operations.Message]{Items: result.Messages, Mode: result.Mode, Total: result.Total, Limit: result.Limit, Offset: result.Offset})
+		case "orders":
+			httpx.JSON(w, 200, operations.List[operations.Order]{Items: result.Orders, Mode: result.Mode, Total: result.Total, Limit: result.Limit, Offset: result.Offset})
+		case "ledger":
+			httpx.JSON(w, 200, operations.List[operations.Ledger]{Items: result.Ledger, Mode: result.Mode, Total: result.Total, Limit: result.Limit, Offset: result.Offset})
+		case "payments":
+			httpx.JSON(w, 200, operations.List[operations.Payment]{Items: result.Payments, Mode: result.Mode, Total: result.Total, Limit: result.Limit, Offset: result.Offset})
 		}
 	}
-	if err != nil || f.Limit < 1 || f.Limit > 100 || f.Offset < 0 || f.Offset > 100000 || len(f.Search) > 80 {
+}
+func (h *Handler) payment(w http.ResponseWriter, r *http.Request) {
+	reference := chi.URLParam(r, "resource_id")
+	if len(reference) > 80 || len(r.URL.Query()) != 0 {
 		h.fail(w, r, operations.Fail("validation_failed"))
 		return
 	}
-	valid := map[string][]string{"numbers": {"", "active", "released", "expired"}, "messages": {"", "read", "unread"}, "orders": {"", "completed", "failed", "refunded"}, "ledger": {""}, "keys": {""}, "webhooks": {""}, "deliveries": {""}}
-	statuses, ok := valid[f.View]
-	found := false
-	for _, s := range statuses {
-		found = found || s == f.Status
-	}
-	if !ok || !found {
-		h.fail(w, r, operations.Fail("validation_failed"))
-		return
-	}
-	scope := map[string]string{"numbers": "numbers:read", "orders": "numbers:read", "messages": "messages:read", "ledger": "billing:read"}[f.View]
-	if !permitted(actor(r), scope) {
-		h.fail(w, r, operations.Fail("forbidden"))
-		return
-	}
-	result, err := h.store.Read(r.Context(), actor(r), f)
+	result, err := h.store.Read(r.Context(), actor(r), operations.Filter{View: "payments", Search: reference, Limit: 1})
 	if err != nil {
 		h.fail(w, r, err)
 		return
 	}
-	httpx.JSON(w, 200, result)
+	if result.Mode == "disabled" {
+		h.fail(w, r, operations.Fail("feature_disabled"))
+		return
+	}
+	if len(result.Payments) == 0 {
+		h.fail(w, r, operations.Fail("not_found"))
+		return
+	}
+	httpx.JSON(w, 200, result.Payments[0])
 }
-func (h *Handler) command(kind, scope string) http.HandlerFunc {
+func (h *Handler) command(kind string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if !permitted(actor(r), scope) {
-			h.fail(w, r, operations.Fail("forbidden"))
-			return
-		}
 		var c operations.Command
 		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8192))
 		decoder.DisallowUnknownFields()
@@ -174,10 +183,6 @@ func (h *Handler) command(kind, scope string) http.HandlerFunc {
 	}
 }
 func (h *Handler) message(w http.ResponseWriter, r *http.Request) {
-	if !permitted(actor(r), "messages:read") {
-		h.fail(w, r, operations.Fail("forbidden"))
-		return
-	}
 	result, err := h.store.Message(r.Context(), actor(r), chi.URLParam(r, "resource_id"))
 	if err != nil {
 		h.fail(w, r, err)

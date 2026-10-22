@@ -43,13 +43,23 @@ func (q *Queries) CreateMembership(ctx context.Context, arg CreateMembershipPara
 }
 
 const createOrganization = `-- name: CreateOrganization :one
-INSERT INTO organizations (name) VALUES ($1) RETURNING id, name, created_at
+INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING id, name, created_at, slug
 `
 
-func (q *Queries) CreateOrganization(ctx context.Context, name string) (Organization, error) {
-	row := q.db.QueryRow(ctx, createOrganization, name)
+type CreateOrganizationParams struct {
+	Name string
+	Slug string
+}
+
+func (q *Queries) CreateOrganization(ctx context.Context, arg CreateOrganizationParams) (Organization, error) {
+	row := q.db.QueryRow(ctx, createOrganization, arg.Name, arg.Slug)
 	var i Organization
-	err := row.Scan(&i.ID, &i.Name, &i.CreatedAt)
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.CreatedAt,
+		&i.Slug,
+	)
 	return i, err
 }
 
@@ -101,7 +111,7 @@ func (q *Queries) DeleteSession(ctx context.Context, tokenHash []byte) error {
 }
 
 const listUserOrganizations = `-- name: ListUserOrganizations :many
-SELECT organizations.id, organizations.name, memberships.role, organizations.created_at
+SELECT organizations.id, organizations.name, organizations.slug, memberships.role, organizations.created_at
 FROM organizations JOIN memberships ON memberships.organization_id = organizations.id
 WHERE memberships.user_id = $1 ORDER BY organizations.created_at, organizations.id
 LIMIT $2 OFFSET $3
@@ -116,6 +126,7 @@ type ListUserOrganizationsParams struct {
 type ListUserOrganizationsRow struct {
 	ID        string
 	Name      string
+	Slug      string
 	Role      string
 	CreatedAt pgtype.Timestamptz
 }
@@ -132,6 +143,7 @@ func (q *Queries) ListUserOrganizations(ctx context.Context, arg ListUserOrganiz
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Slug,
 			&i.Role,
 			&i.CreatedAt,
 		); err != nil {
@@ -199,7 +211,7 @@ func (q *Queries) UserByEmail(ctx context.Context, email string) (User, error) {
 }
 
 const userOrganizations = `-- name: UserOrganizations :many
-SELECT organizations.id, organizations.name, memberships.role, organizations.created_at
+SELECT organizations.id, organizations.name, organizations.slug, memberships.role, organizations.created_at
 FROM organizations JOIN memberships ON memberships.organization_id = organizations.id
 WHERE memberships.user_id = $1 ORDER BY organizations.created_at, organizations.id
 `
@@ -207,6 +219,7 @@ WHERE memberships.user_id = $1 ORDER BY organizations.created_at, organizations.
 type UserOrganizationsRow struct {
 	ID        string
 	Name      string
+	Slug      string
 	Role      string
 	CreatedAt pgtype.Timestamptz
 }
@@ -223,6 +236,7 @@ func (q *Queries) UserOrganizations(ctx context.Context, userID string) ([]UserO
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
+			&i.Slug,
 			&i.Role,
 			&i.CreatedAt,
 		); err != nil {

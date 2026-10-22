@@ -94,7 +94,7 @@ func New(pool *pgxpool.Pool, c config.Config, logger *slog.Logger, opts ...Optio
 		overviewhttp.New(overview.NewService(overviewpostgres.New(pool), c.Environment == "development", overview.Telemetry{Instrumented: c.TelemetryEnabled, ExporterConfigured: c.TelemetryEnabled && c.TelemetryEndpoint != ""}), logger).Routes(v1, identityHandler.Authenticate)
 		identityHandler.Routes(v1)
 		operationshttp.New(o.runtime.Store, identityHandler, logger, c.DataEncryptionKey).Routes(v1)
-		cataloghttp.New(catalog.NewService(catalogpostgres.New(pool), c.Environment == "development"), logger).Routes(v1, identityHandler.Authenticate)
+		cataloghttp.New(catalog.NewService(catalogpostgres.New(pool), c.Environment == "development"), logger).Routes(v1)
 	})
 	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
 		httpx.Fail(w, r, 404, "not_found", "This endpoint does not exist.")

@@ -9,7 +9,7 @@ import (
 )
 
 func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filter) (operations.Snapshot, error) {
-	out := operations.Snapshot{Mode: "disabled", Wallet: operations.Wallet{Currency: "USD"}, Numbers: []operations.Number{}, Orders: []operations.Order{}, Ledger: []operations.Ledger{}, Messages: []operations.Message{}, APIKeys: []operations.APIKey{}, Webhooks: []operations.Webhook{}, Deliveries: []operations.Delivery{}, Limit: f.Limit, Offset: f.Offset}
+	out := operations.Snapshot{Mode: "disabled", Payments: []operations.Payment{}, Wallet: operations.Wallet{Currency: "USD"}, Numbers: []operations.Number{}, Orders: []operations.Order{}, Ledger: []operations.Ledger{}, Messages: []operations.Message{}, Limit: f.Limit, Offset: f.Offset}
 	tx, err := s.Pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead})
 	if err != nil {
 		return out, err
@@ -24,21 +24,21 @@ func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filte
 		return out, tx.Commit(ctx)
 	}
 	out.Mode = "mock"
-	w, err := q.GetWallet(ctx, a.OrganizationID)
-	if err == nil {
-		out.Wallet = wallet(w)
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return out, err
-	}
-	counts, err := q.WorkspaceCounts(ctx, a.OrganizationID)
-	if err != nil {
-		return out, err
-	}
-	out.Counts = operations.Counts{Numbers: counts.Numbers, UnreadMessages: counts.UnreadMessages, CompletedOrders: counts.CompletedOrders}
-	if f.View == "keys" || f.View == "webhooks" || f.View == "deliveries" {
-		if out.Role == "member" || a.KeyID != "" {
-			return out, operations.Fail("forbidden")
+	if f.View == "summary" || f.View == "wallet" {
+		w, e := q.GetWallet(ctx, a.OrganizationID)
+		if e == nil {
+			out.Wallet = wallet(w)
+		} else if !errors.Is(e, pgx.ErrNoRows) {
+			return out, e
 		}
+		if f.View == "summary" {
+			counts, e := q.WorkspaceCounts(ctx, a.OrganizationID)
+			if e != nil {
+				return out, e
+			}
+			out.Counts = operations.Counts{Numbers: counts.Numbers, UnreadMessages: counts.UnreadMessages, CompletedOrders: counts.CompletedOrders}
+		}
+		return out, tx.Commit(ctx)
 	}
 	switch f.View {
 	case "numbers":
@@ -50,6 +50,15 @@ func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filte
 			out.Numbers = append(out.Numbers, operations.Number{ID: r.ID, E164: r.E164, Status: r.Status, CountryCode: r.CountryCode, NumberType: r.NumberType, Capabilities: r.Capabilities, MonthlyFeeMinor: r.MonthlyFeeMinor, StartedAt: r.StartedAt.Time, ExpiresAt: r.ExpiresAt.Time, OrderID: r.OrderID})
 		}
 		out.Total, err = q.CountNumbers(ctx, db.CountNumbersParams{OrganizationID: a.OrganizationID, Column2: f.Status, Column3: f.Search})
+	case "payments":
+		rows, e := q.ListPayments(ctx, db.ListPaymentsParams{OrganizationID: a.OrganizationID, Status: f.Status, Search: f.Search, PageLimit: f.Limit, PageOffset: f.Offset})
+		if e != nil {
+			return out, e
+		}
+		for _, r := range rows {
+			out.Payments = append(out.Payments, operations.Payment{ID: r.ID, Reference: r.Reference, AmountMinor: r.AmountMinor, Currency: r.Currency, Provider: r.Provider, Status: r.Status, CreatedAt: r.CreatedAt.Time, ExpiresAt: r.ExpiresAt.Time})
+		}
+		out.Total, err = q.CountPayments(ctx, db.CountPaymentsParams{OrganizationID: a.OrganizationID, Status: f.Status, Search: f.Search})
 	case "orders":
 		rows, e := q.ListOrders(ctx, db.ListOrdersParams{OrganizationID: a.OrganizationID, Column2: f.Status, Limit: f.Limit, Offset: f.Offset})
 		if e != nil {
@@ -77,50 +86,11 @@ func (s *Store) Read(ctx context.Context, a operations.Actor, f operations.Filte
 			out.Messages = append(out.Messages, operations.Message{ID: r.ID, LeaseID: r.LeaseID, E164: r.E164, ReceivedAt: r.ReceivedAt.Time, ExpiresAt: r.ExpiresAt.Time, Read: r.ReadAt.Valid})
 		}
 		out.Total, err = q.CountMessages(ctx, db.CountMessagesParams{OrganizationID: a.OrganizationID, Column2: f.Status})
-	case "keys":
-		rows, e := q.ListAPIKeys(ctx, db.ListAPIKeysParams{OrganizationID: a.OrganizationID, Limit: f.Limit, Offset: f.Offset})
-		if e != nil {
-			return out, e
-		}
-		for _, r := range rows {
-			out.APIKeys = append(out.APIKeys, operations.APIKey{ID: r.ID, Name: r.Name, Prefix: r.Prefix, Scopes: r.Scopes, CreatedAt: r.CreatedAt.Time, ExpiresAt: r.ExpiresAt.Time, Revoked: r.RevokedAt.Valid})
-		}
-		out.Total, err = q.CountAPIKeys(ctx, a.OrganizationID)
-	case "webhooks":
-		rows, e := q.ListWebhooks(ctx, db.ListWebhooksParams{OrganizationID: a.OrganizationID, Limit: f.Limit, Offset: f.Offset})
-		if e != nil {
-			return out, e
-		}
-		for _, r := range rows {
-			out.Webhooks = append(out.Webhooks, operations.Webhook{ID: r.ID, URL: r.Url, Enabled: r.Enabled, CreatedAt: r.CreatedAt.Time})
-		}
-		out.Total, err = q.CountWebhooks(ctx, a.OrganizationID)
-	case "deliveries":
-		rows, e := q.ListDeliveries(ctx, db.ListDeliveriesParams{OrganizationID: a.OrganizationID, Limit: f.Limit, Offset: f.Offset})
-		if e != nil {
-			return out, e
-		}
-		for _, r := range rows {
-			out.Deliveries = append(out.Deliveries, operations.Delivery{ID: r.ID, EndpointID: r.EndpointID, EventID: r.EventID, Status: r.Status, Attempts: r.Attempts, ResponseStatus: r.ResponseStatus, CreatedAt: r.CreatedAt.Time})
-		}
-		out.Total, err = q.CountDeliveries(ctx, a.OrganizationID)
 	default:
 		return out, operations.Fail("validation_failed")
 	}
 	if err != nil {
 		return out, err
-	}
-	if a.KeyID != "" {
-		if !contains(a.Scopes, "billing:read") {
-			out.Wallet = operations.Wallet{Currency: "USD"}
-		}
-		if !contains(a.Scopes, "numbers:read") {
-			out.Counts.Numbers = 0
-			out.Counts.CompletedOrders = 0
-		}
-		if !contains(a.Scopes, "messages:read") {
-			out.Counts.UnreadMessages = 0
-		}
 	}
 	return out, tx.Commit(ctx)
 }

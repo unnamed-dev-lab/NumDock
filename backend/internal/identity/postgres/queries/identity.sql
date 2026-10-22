@@ -5,7 +5,7 @@ INSERT INTO users (email, name, password_hash) VALUES ($1, $2, $3) RETURNING *;
 SELECT * FROM users WHERE email = $1;
 
 -- name: CreateOrganization :one
-INSERT INTO organizations (name) VALUES ($1) RETURNING *;
+INSERT INTO organizations (name, slug) VALUES ($1, $2) RETURNING *;
 
 -- name: CreateMembership :exec
 INSERT INTO memberships (user_id, organization_id, role) VALUES ($1, $2, 'owner');
@@ -21,7 +21,7 @@ WHERE sessions.token_hash = $1 AND sessions.expires_at > now();
 DELETE FROM sessions WHERE token_hash = $1;
 
 -- name: UserOrganizations :many
-SELECT organizations.id, organizations.name, memberships.role, organizations.created_at
+SELECT organizations.id, organizations.name, organizations.slug, memberships.role, organizations.created_at
 FROM organizations JOIN memberships ON memberships.organization_id = organizations.id
 WHERE memberships.user_id = $1 ORDER BY organizations.created_at, organizations.id;
 
@@ -41,7 +41,7 @@ DELETE FROM auth_rate_limits WHERE expires_at <= now();
 DELETE FROM sessions WHERE expires_at <= now();
 
 -- name: ListUserOrganizations :many
-SELECT organizations.id, organizations.name, memberships.role, organizations.created_at
+SELECT organizations.id, organizations.name, organizations.slug, memberships.role, organizations.created_at
 FROM organizations JOIN memberships ON memberships.organization_id = organizations.id
 WHERE memberships.user_id = $1 ORDER BY organizations.created_at, organizations.id
 LIMIT $2 OFFSET $3;

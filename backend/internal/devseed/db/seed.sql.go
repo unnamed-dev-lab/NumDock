@@ -70,16 +70,17 @@ func (q *Queries) SeedMembership(ctx context.Context, arg SeedMembershipParams) 
 }
 
 const seedOrganization = `-- name: SeedOrganization :exec
-INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING
+INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING
 `
 
 type SeedOrganizationParams struct {
 	ID   string
 	Name string
+	Slug string
 }
 
 func (q *Queries) SeedOrganization(ctx context.Context, arg SeedOrganizationParams) error {
-	_, err := q.db.Exec(ctx, seedOrganization, arg.ID, arg.Name)
+	_, err := q.db.Exec(ctx, seedOrganization, arg.ID, arg.Name, arg.Slug)
 	return err
 }
 

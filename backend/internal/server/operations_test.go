@@ -64,7 +64,7 @@ func loginDevelopment(t *testing.T, f fixture, email string) (*http.Client, stri
 	}
 	return c, csrf
 }
-func TestMockWorkspaceTransactionsSecurityAndDelivery(t *testing.T) {
+func TestMockTransactionsSecurityAndInboundMessages(t *testing.T) {
 	key := randomBytes(t, 32)
 	f := setupWithConfig(t, config.Config{AppOrigin: "http://client.test", Environment: "development", DataEncryptionKey: key})
 	seedDevelopment(t, f)
@@ -72,6 +72,7 @@ func TestMockWorkspaceTransactionsSecurityAndDelivery(t *testing.T) {
 	member, memberCSRF := loginDevelopment(t, f, "member@numdock.test")
 	isolated, _ := loginDevelopment(t, f, "isolated@numdock.test")
 	ctx := context.Background()
+	var err error
 	org := devseed.WorkspaceID
 	must := func(path, key string, c operations.Command) operations.Result {
 		t.Helper()
@@ -82,17 +83,18 @@ func TestMockWorkspaceTransactionsSecurityAndDelivery(t *testing.T) {
 		return out
 	}
 	credit := operations.Command{AmountMinor: 10000}
-	must("/billing/mock-credit", "credit-0001", credit)
-	must("/billing/mock-credit", "credit-0001", credit)
-	status, _ := operationRequest(t, f, owner, "POST", "/billing/mock-credit", "credit-0001", csrf, "", operations.Command{AmountMinor: 12000})
+	p := must("/billing/payments", "credit-0001", credit)
+	must("/billing/payments/"+p.ID+"/confirm", "settle-credit-0001", operations.Command{})
+	must("/billing/payments/"+p.ID+"/confirm", "settle-credit-0001", operations.Command{})
+	status, _ := operationRequest(t, f, owner, "POST", "/billing/payments", "credit-0001", csrf, "", operations.Command{AmountMinor: 12000})
 	if status != 409 {
 		t.Fatal("changed idempotency input accepted")
 	}
-	status, _ = operationRequest(t, f, member, "POST", "/billing/mock-credit", "member-credit", memberCSRF, "", credit)
+	status, _ = operationRequest(t, f, member, "POST", "/billing/payments", "member-credit", memberCSRF, "", credit)
 	if status != 403 {
 		t.Fatal("member could write")
 	}
-	status, _ = operationRequest(t, f, owner, "POST", "/billing/mock-credit", "no-csrf-key", "", "", credit)
+	status, _ = operationRequest(t, f, owner, "POST", "/billing/payments", "no-csrf-key", "", "", credit)
 	if status != 403 {
 		t.Fatal("missing CSRF accepted")
 	}
@@ -149,81 +151,6 @@ func TestMockWorkspaceTransactionsSecurityAndDelivery(t *testing.T) {
 	if status != 200 || !bytes.Contains(body, []byte("Mock customer support content")) {
 		t.Fatal("authorized decryption failed")
 	}
-	apiKey := must("/api-keys", "create-read-key", operations.Command{Name: "Read numbers", Scopes: []string{"numbers:read"}, ExpiresDays: 1})
-	if apiKey.Secret == "" {
-		t.Fatal("secret absent")
-	}
-	replay := must("/api-keys", "create-read-key", operations.Command{Name: "Read numbers", Scopes: []string{"numbers:read"}, ExpiresDays: 1})
-	if replay.Secret != "" {
-		t.Fatal("one-time secret persisted")
-	}
-	bearer := func(path string) int {
-		req, _ := http.NewRequest("GET", f.server.URL+path, nil)
-		req.Header.Set("Authorization", "Bearer "+apiKey.Secret)
-		res, err := http.DefaultClient.Do(req)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer res.Body.Close()
-		return res.StatusCode
-	}
-	if bearer("/v1/organizations/"+org+"/workspace?view=numbers") != 200 || bearer("/v1/organizations/"+org+"/workspace?view=messages") != 403 || bearer("/v1/organizations/"+devseed.IsolatedWorkspaceID+"/workspace") != 404 {
-		t.Fatal("API key scopes or tenant binding failed")
-	}
-	status, _ = operationRequest(t, f, http.DefaultClient, "POST", "/orders", "no-write-scope", "", apiKey.Secret, purchase)
-	if status != 403 {
-		t.Fatal("read key could purchase")
-	}
-	must("/api-keys/"+apiKey.ID+"/revoke", "revoke-key", operations.Command{})
-	if bearer("/v1/organizations/"+org+"/workspace") != 401 {
-		t.Fatal("revoked key accepted")
-	}
-	hook := must("/webhooks", "create-hook", operations.Command{URL: "mock://success"})
-	must("/webhooks/"+hook.ID+"/test", "test-hook", operations.Command{})
-	runtime, err := operationsruntime.New(f.pool, key, true, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = runtime.Start(ctx); err != nil {
-		t.Fatal(err)
-	}
-	defer runtime.Stop(ctx)
-	deadline := time.Now().Add(8 * time.Second)
-	for {
-		var delivered int
-		if err = f.pool.QueryRow(ctx, "SELECT count(*) FROM webhook_deliveries WHERE endpoint_id=$1 AND status='succeeded'", hook.ID).Scan(&delivered); err != nil {
-			t.Fatal(err)
-		}
-		if delivered > 0 {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("durable delivery worker did not run")
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	bad := must("/webhooks", "create-bad-hook", operations.Command{URL: "mock://failure"})
-	must("/webhooks/"+bad.ID+"/test", "bad-hook-test", operations.Command{})
-	var delivery string
-	if err = f.pool.QueryRow(ctx, "SELECT id FROM webhook_deliveries WHERE endpoint_id=$1 ORDER BY created_at LIMIT 1", bad.ID).Scan(&delivery); err != nil {
-		t.Fatal(err)
-	}
-	for range 6 {
-		if _, err = f.pool.Exec(ctx, "UPDATE webhook_deliveries SET next_attempt_at=now()-interval '1 second' WHERE id=$1", delivery); err != nil {
-			t.Fatal(err)
-		}
-		if err = runtime.Store.RunTask(ctx, "deliver", delivery); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var state string
-	var attempts int
-	if err = f.pool.QueryRow(ctx, "SELECT status,attempts FROM webhook_deliveries WHERE id=$1", delivery).Scan(&state, &attempts); err != nil {
-		t.Fatal(err)
-	}
-	if state != "failed" || attempts != 5 {
-		t.Fatal("bounded retry state failed")
-	}
 	status, _ = operationRequest(t, f, owner, "POST", "/orders/"+successful.ID+"/refund", "refund-active", csrf, "", operations.Command{})
 	if status != 409 {
 		t.Fatal("active lease refunded")
@@ -269,6 +196,7 @@ func TestMockWorkspaceTransactionsSecurityAndDelivery(t *testing.T) {
 	if send(incoming, true) != 409 {
 		t.Fatal("conflicting provider event accepted")
 	}
+	var state string
 	if err = f.pool.QueryRow(ctx, "SELECT state FROM provider_events WHERE id=$1", incoming.ID).Scan(&state); err != nil || state != "quarantined" {
 		t.Fatal("late message not quarantined")
 	}
@@ -337,16 +265,6 @@ func TestMockRetentionExpiryAndReplay(t *testing.T) {
 	_, err = runtime.Store.Events(ctx, operations.Actor{UserID: "d1000000-0000-4000-8000-000000000004", OrganizationID: devseed.WorkspaceID}, 0)
 	if err == nil {
 		t.Fatal("cross-tenant events exposed")
-	}
-	k := run("expiry-key-create", operations.Command{Kind: "create_key", Name: "expiry", Scopes: []string{"numbers:read"}, ExpiresDays: 1})
-	if _, err = runtime.Store.Authenticate(ctx, k.Secret); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = f.pool.Exec(ctx, "UPDATE api_keys SET expires_at=now()-interval '1 minute' WHERE id=$1", k.ID); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = runtime.Store.Authenticate(ctx, k.Secret); err == nil {
-		t.Fatal("expired key accepted")
 	}
 	if _, err = f.pool.Exec(ctx, "UPDATE messages SET expires_at=now()-interval '1 second' WHERE id=$1", incoming.ID); err != nil {
 		t.Fatal(err)

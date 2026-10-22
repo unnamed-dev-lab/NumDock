@@ -36,45 +36,7 @@ func Operations(ctx context.Context, s operations.Store) error {
 				}
 			}
 		}
-		if err := developerSamples(ctx, s, a); err != nil {
-			return err
-		}
-	}
-	return nil
-}
 
-// Developer examples contain random read-only token hashes, never reusable default
-// credentials. Secrets are deliberately discarded; create a new key in the UI to use it.
-func developerSamples(ctx context.Context, s operations.Store, a operations.Actor) error {
-	if _, err := s.Execute(ctx, a, "seed-key-reader-v1", operations.Command{Kind: "create_key", Name: "Read-only development sample (Mock)", Scopes: []string{"numbers:read", "messages:read", "billing:read"}, ExpiresDays: 30}); err != nil {
-		return err
-	}
-	revoked, err := s.Execute(ctx, a, "seed-key-revoked-v1", operations.Command{Kind: "create_key", Name: "Revoked development sample (Mock)", Scopes: []string{"numbers:read"}, ExpiresDays: 30})
-	if err != nil {
-		return err
-	}
-	if _, err = s.Execute(ctx, a, "seed-key-revoke-v1", operations.Command{Kind: "revoke_key", ResourceID: revoked.ID}); err != nil {
-		return err
-	}
-	success, err := s.Execute(ctx, a, "seed-webhook-v1", operations.Command{Kind: "create_webhook", URL: "mock://success"})
-	if err != nil {
-		return err
-	}
-	failure, err := s.Execute(ctx, a, "seed-webhook-failure-v1", operations.Command{Kind: "create_webhook", URL: "mock://failure"})
-	if err != nil {
-		return err
-	}
-	disabled, err := s.Execute(ctx, a, "seed-webhook-disabled-v1", operations.Command{Kind: "create_webhook", URL: "mock://success"})
-	if err != nil {
-		return err
-	}
-	if _, err = s.Execute(ctx, a, "seed-webhook-disable-v1", operations.Command{Kind: "toggle_webhook", ResourceID: disabled.ID, Enabled: false}); err != nil {
-		return err
-	}
-	for _, example := range []struct{ key, id string }{{"seed-delivery-success-v1", success.ID}, {"seed-delivery-failure-v1", failure.ID}} {
-		if _, err = s.Execute(ctx, a, example.key, operations.Command{Kind: "test_webhook", ResourceID: example.id}); err != nil {
-			return err
-		}
 	}
 	return nil
 }

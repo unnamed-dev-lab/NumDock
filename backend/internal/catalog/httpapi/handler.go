@@ -24,8 +24,8 @@ func New(service *catalog.Service, logger *slog.Logger) *Handler {
 	return &Handler{service: service, logger: logger}
 }
 
-func (h *Handler) Routes(r chi.Router, authenticate func(http.Handler) http.Handler) {
-	r.With(authenticate).Get("/catalog/numbers", h.list)
+func (h *Handler) Routes(r chi.Router) {
+	r.Get("/catalog/numbers", h.list)
 }
 
 func parseFilter(q url.Values) (catalog.Filter, error) {

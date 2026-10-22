@@ -14,6 +14,8 @@ import (
 
 func (s *Store) execute(ctx context.Context, tx pgx.Tx, q *db.Queries, a operations.Actor, c operations.Command) (operations.Result, error) {
 	switch c.Kind {
+	case "create_payment", "pay_payment", "cancel_payment":
+		return s.payment(ctx, tx, q, a, c)
 	case "credit":
 		if c.AmountMinor < 100 || c.AmountMinor > 1000000 {
 			return operations.Result{}, operations.Fail("validation_failed")
@@ -147,8 +149,6 @@ func (s *Store) execute(ctx context.Context, tx pgx.Tx, q *db.Queries, a operati
 		}
 		err = s.emit(ctx, tx, q, a.OrganizationID, "message.deleted", c.ResourceID)
 		return operations.Result{ID: c.ResourceID, Status: "deleted"}, err
-	case "create_key", "revoke_key", "create_webhook", "toggle_webhook", "test_webhook":
-		return s.developer(ctx, tx, q, a, c)
 	default:
 		return operations.Result{}, operations.Fail("validation_failed")
 	}

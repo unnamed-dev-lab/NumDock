@@ -46,7 +46,11 @@ func (s *Store) CreateAccount(ctx context.Context, params identity.CreateAccount
 		}
 		return identity.User{}, nil, err
 	}
-	organization, err := q.CreateOrganization(ctx, params.OrganizationName)
+	slug, err := identity.OrganizationSlug(params.OrganizationName)
+	if err != nil {
+		return identity.User{}, nil, err
+	}
+	organization, err := q.CreateOrganization(ctx, identitydb.CreateOrganizationParams{Name: params.OrganizationName, Slug: slug})
 	if err != nil {
 		return identity.User{}, nil, err
 	}
@@ -157,6 +161,7 @@ func (s *Store) ListUserOrganizations(ctx context.Context, params identity.ListO
 		organizations = append(organizations, identity.Organization{
 			ID:        row.ID,
 			Name:      row.Name,
+			Slug:      row.Slug,
 			Role:      row.Role,
 			CreatedAt: row.CreatedAt.Time,
 		})
@@ -200,6 +205,7 @@ func mapUserOrganizations(rows []identitydb.UserOrganizationsRow) []identity.Org
 		organizations = append(organizations, identity.Organization{
 			ID:        row.ID,
 			Name:      row.Name,
+			Slug:      row.Slug,
 			Role:      row.Role,
 			CreatedAt: row.CreatedAt.Time,
 		})

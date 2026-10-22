@@ -9,7 +9,7 @@ ON CONFLICT (id) DO NOTHING;
 SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND email = $2);
 
 -- name: SeedOrganization :exec
-INSERT INTO organizations (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING;
+INSERT INTO organizations (id, name, slug) VALUES ($1, $2, $3) ON CONFLICT (id) DO NOTHING;
 
 -- name: SeedMembership :exec
 INSERT INTO memberships (user_id, organization_id, role) VALUES ($1, $2, $3)

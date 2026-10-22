@@ -49,8 +49,8 @@ func TestDevelopmentSeedAndCatalog(t *testing.T) {
 	}
 	client := newClient(t)
 	status, _, _ := request(t, client, "GET", f.server.URL+"/v1/catalog/numbers", "", "", "")
-	if status != 401 {
-		t.Fatal("catalog allowed anonymous access")
+	if status != 200 {
+		t.Fatal("public catalog rejected anonymous browsing")
 	}
 	csrf := token(t, f, client)
 	for _, a := range []struct{ email, role, organization string }{

@@ -42,7 +42,7 @@ func TestPublicStatusModesAndReadiness(t *testing.T) {
 						mode = "unavailable"
 					}
 				}
-				for _, feature := range []string{"catalog", "numbers", "messaging", "billing", "developer"} {
+				for _, feature := range []string{"catalog", "numbers", "messaging", "billing"} {
 					if result.Features[feature] != mode {
 						t.Fatalf("incorrect %s mode: %s", feature, body)
 					}

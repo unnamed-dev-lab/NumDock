@@ -46,6 +46,7 @@ type User struct {
 }
 
 type Organization struct {
+	Slug      string    `json:"slug"`
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
 	Role      string    `json:"role"`
@@ -219,6 +220,9 @@ func (h *Handler) readCredentials(w http.ResponseWriter, r *http.Request, regist
 		return c, false
 	}
 	c.Name, c.OrganizationName = strings.TrimSpace(c.Name), strings.TrimSpace(c.OrganizationName)
+	if registration && c.OrganizationName == "" {
+		c.OrganizationName = c.Name
+	}
 	if registration && (utf8.RuneCountInString(c.Name) < 1 || utf8.RuneCountInString(c.Name) > 100 || utf8.RuneCountInString(c.OrganizationName) < 1 || utf8.RuneCountInString(c.OrganizationName) > 100) {
 		httpx.Fail(w, r, 400, "validation_failed", "Name and workspace name must each contain 1–100 characters.")
 		return c, false
@@ -358,6 +362,7 @@ func (h *Handler) organizations(w http.ResponseWriter, r *http.Request) {
 		organizations = append(organizations, Organization{
 			ID:        item.ID,
 			Name:      item.Name,
+			Slug:      item.Slug,
 			Role:      item.Role,
 			CreatedAt: item.CreatedAt,
 		})
@@ -431,6 +436,7 @@ func mapIdentity(value identity.Identity) Identity {
 		organizations = append(organizations, Organization{
 			ID:        organization.ID,
 			Name:      organization.Name,
+			Slug:      organization.Slug,
 			Role:      organization.Role,
 			CreatedAt: organization.CreatedAt,
 		})

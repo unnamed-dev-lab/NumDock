@@ -144,6 +144,21 @@ type Organization struct {
 	ID        string
 	Name      string
 	CreatedAt pgtype.Timestamptz
+	Slug      string
+}
+
+type PaymentOrder struct {
+	ID             string
+	Reference      string
+	OrganizationID string
+	UserID         string
+	AmountMinor    int64
+	Currency       string
+	Provider       string
+	Status         string
+	CreatedAt      pgtype.Timestamptz
+	ExpiresAt      pgtype.Timestamptz
+	CompletedAt    pgtype.Timestamptz
 }
 
 type ProviderEvent struct {

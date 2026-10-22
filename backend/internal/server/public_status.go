@@ -24,7 +24,6 @@ type publicFeatures struct {
 	Numbers   featureMode `json:"numbers"`
 	Messaging featureMode `json:"messaging"`
 	Billing   featureMode `json:"billing"`
-	Developer featureMode `json:"developer"`
 }
 
 type publicStatus struct {
@@ -56,7 +55,7 @@ func publicStatusHandler(pool *pgxpool.Pool, development bool) http.HandlerFunc 
 		}
 		httpx.JSON(w, http.StatusOK, publicStatus{
 			CheckedAt: time.Now().UTC(), API: true, Database: ready,
-			Features: publicFeatures{Identity: identityMode, Catalog: mode, Numbers: mode, Messaging: mode, Billing: mode, Developer: mode},
+			Features: publicFeatures{Identity: identityMode, Catalog: mode, Numbers: mode, Messaging: mode, Billing: mode},
 			// No live provider or payment adapter is implemented in this build.
 			LiveProviderConnected: false, PaymentsConnected: false,
 		})

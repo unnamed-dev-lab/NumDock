@@ -24,7 +24,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/organizations/{organization_id}/workspace": {
+    "/v1/organizations/{organization_id}/billing/payments": {
         parameters: {
             query?: never;
             header?: never;
@@ -33,28 +33,63 @@ export interface paths {
             };
             cookie?: never;
         };
-        get: operations["getWorkspace"];
+        /**
+         * listPayments
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["listPayments"];
         put?: never;
-        post?: never;
+        /**
+         * Create a development payment order; no balance is credited until confirmation.
+         * @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session.
+         */
+        post: operations["createPayment"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/organizations/{organization_id}/billing/mock-credit": {
+    "/v1/organizations/{organization_id}/billing/payments/{resource_id}/confirm": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                resource_id: string;
                 organization_id: string;
             };
             cookie?: never;
         };
         get?: never;
         put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        post: operations["creditWallet"];
+        /**
+         * Confirm development payment using the stored order amount. Never available in production.
+         * @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session.
+         */
+        post: operations["confirmPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/billing/payments/{resource_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                resource_id: string;
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a pending payment without changing the balance.
+         * @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session.
+         */
+        post: operations["cancelPayment"];
         delete?: never;
         options?: never;
         head?: never;
@@ -70,9 +105,13 @@ export interface paths {
             };
             cookie?: never;
         };
-        get?: never;
+        /**
+         * listOrders
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["listOrders"];
         put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
+        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session. */
         post: operations["purchaseNumber"];
         delete?: never;
         options?: never;
@@ -92,7 +131,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
+        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session. */
         post: operations["releaseLease"];
         delete?: never;
         options?: never;
@@ -112,7 +151,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
+        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session. */
         post: operations["refundOrder"];
         delete?: never;
         options?: never;
@@ -131,7 +170,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
+        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session. */
         post: operations["simulateMessage"];
         delete?: never;
         options?: never;
@@ -152,106 +191,8 @@ export interface paths {
         get: operations["readMessage"];
         put?: never;
         post?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
+        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. All customer writes require a session. */
         delete: operations["deleteMessage"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organization_id}/api-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        post: operations["createAPIKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organization_id}/api-keys/{resource_id}/revoke": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        post: operations["revokeAPIKey"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organization_id}/webhooks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        post: operations["createWebhook"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizations/{organization_id}/webhooks/{resource_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        patch: operations["toggleWebhook"];
-        trace?: never;
-    };
-    "/v1/organizations/{organization_id}/webhooks/{resource_id}/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** @description Mock development only; owner/admin required. Browser writes require Origin and CSRF. API keys may purchase/release with numbers:write; other writes require a session. Idempotent responses omit one-time secrets on replay. */
-        post: operations["testWebhook"];
-        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -493,10 +434,10 @@ export interface paths {
         };
         /**
          * List the development number catalog
-         * @description Authenticated read-only catalog. Only APP_ENV=development exposes seeded
+         * @description Public read-only catalog of available inventory and prices. Leased and quarantined resources are excluded. Only APP_ENV=development exposes seeded
          *     mock inventory; all other modes return an empty list with mode=disabled,
          *     even if fixture rows exist. Mock numbers and prices are synthetic and
-         *     cannot be purchased or used to receive messages. No live provider is connected.
+         *     can only be leased and tested using authenticated development operations. No live provider is connected.
          *     Filters combine with AND. Search is a case-insensitive literal substring
          *     over number, country name, region, and provider (not SQL wildcards).
          *     Ordering is stable with an ID tie-breaker. Total counts all matching rows.
@@ -541,6 +482,140 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{organization_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * getAccountSummary
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["getAccountSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/billing/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * getWallet
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["getWallet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/numbers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * listNumbers
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["listNumbers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * listMessages
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["listMessages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/billing/ledger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * listLedger
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["listLedger"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizations/{organization_id}/billing/payments/{resource_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                /** @description Payment reference shown on the checkout. */
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * getPayment
+         * @description Authenticated account resource. Cookie session required; ownership is checked by the server.
+         */
+        get: operations["getPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -560,7 +635,6 @@ export interface components {
                 numbers: components["schemas"]["PublicFeatureMode"];
                 messaging: components["schemas"]["PublicFeatureMode"];
                 billing: components["schemas"]["PublicFeatureMode"];
-                developer: components["schemas"]["PublicFeatureMode"];
             };
         };
         Wallet: {
@@ -611,7 +685,7 @@ export interface components {
             id: string;
             reference_id: string;
             /** @enum {string} */
-            kind: "mock_credit" | "reserve" | "settle" | "release" | "refund";
+            kind: "mock_credit" | "payment_credit" | "reserve" | "settle" | "release" | "refund";
             /** Format: int64 */
             available_delta: number;
             /** Format: int64 */
@@ -634,38 +708,6 @@ export interface components {
             read: boolean;
             body?: string;
         };
-        WorkspaceAPIKey: {
-            id: string;
-            name: string;
-            prefix: string;
-            scopes: ("numbers:read" | "numbers:write" | "messages:read" | "billing:read")[];
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            expires_at: string;
-            revoked: boolean;
-        };
-        WorkspaceWebhook: {
-            id: string;
-            url: string;
-            enabled: boolean;
-            /** Format: date-time */
-            created_at: string;
-        };
-        WebhookDelivery: {
-            id: string;
-            endpoint_id: string;
-            /** Format: int64 */
-            event_id: number;
-            /** @enum {string} */
-            status: "pending" | "succeeded" | "failed" | "disabled";
-            /** Format: int64 */
-            attempts: number;
-            /** Format: int64 */
-            response_status: number;
-            /** Format: date-time */
-            created_at: string;
-        };
         WorkspaceEvent: {
             /** Format: int64 */
             id: number;
@@ -682,12 +724,6 @@ export interface components {
             simulate_failure?: boolean;
             lease_id?: string;
             body?: string;
-            name?: string;
-            scopes?: string[];
-            /** Format: int64 */
-            expires_days?: number;
-            url?: string;
-            enabled?: boolean;
         };
         ProviderIncoming: {
             id: string;
@@ -699,36 +735,30 @@ export interface components {
         ProviderAcknowledgement: {
             status: string;
         };
-        WorkspaceSnapshot: {
+        PaymentOrder: {
+            /** Format: uuid */
+            id: string;
+            reference: string;
+            /** Format: int64 */
+            amount_minor: number;
             /** @enum {string} */
-            mode: "mock" | "disabled";
+            currency: "USD";
             /** @enum {string} */
-            role: "owner" | "admin" | "member";
-            wallet: components["schemas"]["Wallet"];
-            counts: components["schemas"]["WorkspaceCounts"];
-            numbers: components["schemas"]["LeasedNumber"][];
-            orders: components["schemas"]["WorkspaceOrder"][];
-            ledger: components["schemas"]["LedgerEntry"][];
-            messages: components["schemas"]["WorkspaceMessage"][];
-            api_keys: components["schemas"]["WorkspaceAPIKey"][];
-            webhooks: components["schemas"]["WorkspaceWebhook"][];
-            deliveries: components["schemas"]["WebhookDelivery"][];
-            /** Format: int64 */
-            total: number;
-            /** Format: int64 */
-            limit: number;
-            /** Format: int64 */
-            offset: number;
+            provider: "mock";
+            /** @enum {string} */
+            status: "pending" | "succeeded" | "failed" | "canceled" | "expired";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            expires_at: string;
         };
         WorkspaceResult: {
             id: string;
             status: string;
-            secret?: string;
             order?: components["schemas"]["WorkspaceOrder"];
             number?: components["schemas"]["LeasedNumber"];
+            payment?: components["schemas"]["PaymentOrder"];
             wallet?: components["schemas"]["Wallet"];
-            key?: components["schemas"]["WorkspaceAPIKey"];
-            webhook?: components["schemas"]["WorkspaceWebhook"];
         };
         CatalogItem: {
             /** Format: uuid */
@@ -826,7 +856,7 @@ export interface components {
          * @example validation_failed
          * @enum {string}
          */
-        ErrorCode: "resource_limit" | "invalid_webhook_url" | "webhook_disabled" | "feature_disabled" | "forbidden" | "idempotency_conflict" | "inventory_unavailable" | "insufficient_balance" | "lease_inactive" | "refund_unavailable" | "release_required" | "sms_unavailable" | "validation_failed" | "invalid_request" | "unsupported_media_type" | "payload_too_large" | "csrf_failed" | "account_unavailable" | "invalid_credentials" | "unauthenticated" | "rate_limited" | "not_found" | "method_not_allowed" | "not_ready" | "request_timeout" | "internal_error";
+        ErrorCode: "resource_limit" | "feature_disabled" | "forbidden" | "idempotency_conflict" | "inventory_unavailable" | "insufficient_balance" | "lease_inactive" | "refund_unavailable" | "release_required" | "sms_unavailable" | "validation_failed" | "invalid_request" | "unsupported_media_type" | "payload_too_large" | "csrf_failed" | "account_unavailable" | "invalid_credentials" | "unauthenticated" | "rate_limited" | "not_found" | "method_not_allowed" | "not_ready" | "request_timeout" | "internal_error";
         Error: {
             code: components["schemas"]["ErrorCode"];
             /**
@@ -872,7 +902,7 @@ export interface components {
             email: string;
             password: string;
             name: string;
-            organization_name: string;
+            organization_name?: string;
         };
         /**
          * @example {
@@ -895,6 +925,7 @@ export interface components {
          * @example {
          *       "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
          *       "name": "Alpha",
+         *       "slug": "alpha-a6c1e2f31148b902",
          *       "role": "owner",
          *       "created_at": "2026-10-20T12:00:00Z"
          *     }
@@ -903,6 +934,8 @@ export interface components {
             /** Format: uuid */
             id: string;
             name: string;
+            /** @description Stable unique organization handle for browser URLs; never an authorization credential. */
+            slug: string;
             /** @enum {string} */
             role: "owner" | "admin" | "member";
             /** Format: date-time */
@@ -920,6 +953,7 @@ export interface components {
          *         {
          *           "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
          *           "name": "Alpha",
+         *           "slug": "alpha-a6c1e2f31148b902",
          *           "role": "owner",
          *           "created_at": "2026-10-20T12:00:00Z"
          *         }
@@ -936,6 +970,7 @@ export interface components {
          *         {
          *           "id": "6c72da79-7c19-49a9-95c9-18d979051b3f",
          *           "name": "Alpha",
+         *           "slug": "alpha-a6c1e2f31148b902",
          *           "role": "owner",
          *           "created_at": "2026-10-20T12:00:00Z"
          *         }
@@ -946,6 +981,64 @@ export interface components {
          */
         OrganizationList: {
             items: components["schemas"]["Organization"][];
+            limit: number;
+            offset: number;
+        };
+        AccountSummary: {
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** @enum {string} */
+            role: "owner" | "admin" | "member";
+            wallet: components["schemas"]["Wallet"];
+            counts: components["schemas"]["WorkspaceCounts"];
+        };
+        WalletState: {
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            wallet: components["schemas"]["Wallet"];
+        };
+        NumberList: {
+            items: components["schemas"]["LeasedNumber"][];
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        MessageList: {
+            items: components["schemas"]["WorkspaceMessage"][];
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        OrderList: {
+            items: components["schemas"]["WorkspaceOrder"][];
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        LedgerList: {
+            items: components["schemas"]["LedgerEntry"][];
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** Format: int64 */
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        PaymentList: {
+            items: components["schemas"]["PaymentOrder"][];
+            /** @enum {string} */
+            mode: "mock" | "disabled";
+            /** Format: int64 */
+            total: number;
             limit: number;
             offset: number;
         };
@@ -1109,14 +1202,13 @@ export interface operations {
             };
         };
     };
-    getWorkspace: {
+    listPayments: {
         parameters: {
             query?: {
-                view?: "numbers" | "orders" | "ledger" | "messages" | "keys" | "webhooks" | "deliveries";
-                status?: string;
-                q?: string;
                 limit?: number;
                 offset?: number;
+                status?: string;
+                q?: string;
             };
             header?: never;
             path: {
@@ -1132,7 +1224,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["WorkspaceSnapshot"];
+                    "application/json": components["schemas"]["PaymentList"];
                 };
             };
             /** @description Request rejected. */
@@ -1209,7 +1301,7 @@ export interface operations {
             };
         };
     };
-    creditWallet: {
+    createPayment: {
         parameters: {
             query?: never;
             header: {
@@ -1239,6 +1331,319 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkspaceResult"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    confirmPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                /**
+                 * @description Browser requests send this header automatically; non-browser clients
+                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+                 */
+                Origin?: components["parameters"]["Origin"];
+                "X-CSRF-Token"?: string;
+            };
+            path: {
+                resource_id: string;
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCommand"];
+            };
+        };
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResult"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelPayment: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": string;
+                /**
+                 * @description Browser requests send this header automatically; non-browser clients
+                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
+                 */
+                Origin?: components["parameters"]["Origin"];
+                "X-CSRF-Token"?: string;
+            };
+            path: {
+                resource_id: string;
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceCommand"];
+            };
+        };
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceResult"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listOrders: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrderList"];
                 };
             };
             /** @description Request rejected. */
@@ -1943,539 +2348,6 @@ export interface operations {
             };
         };
     };
-    createAPIKey: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                /**
-                 * @description Browser requests send this header automatically; non-browser clients
-                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
-                 */
-                Origin?: components["parameters"]["Origin"];
-                "X-CSRF-Token"?: string;
-            };
-            path: {
-                organization_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
-            };
-        };
-        responses: {
-            /** @description Development workspace result. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResult"];
-                };
-            };
-            /** @description Request rejected. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    revokeAPIKey: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                /**
-                 * @description Browser requests send this header automatically; non-browser clients
-                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
-                 */
-                Origin?: components["parameters"]["Origin"];
-                "X-CSRF-Token"?: string;
-            };
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
-            };
-        };
-        responses: {
-            /** @description Development workspace result. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResult"];
-                };
-            };
-            /** @description Request rejected. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    createWebhook: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                /**
-                 * @description Browser requests send this header automatically; non-browser clients
-                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
-                 */
-                Origin?: components["parameters"]["Origin"];
-                "X-CSRF-Token"?: string;
-            };
-            path: {
-                organization_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
-            };
-        };
-        responses: {
-            /** @description Development workspace result. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResult"];
-                };
-            };
-            /** @description Request rejected. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    toggleWebhook: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                /**
-                 * @description Browser requests send this header automatically; non-browser clients
-                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
-                 */
-                Origin?: components["parameters"]["Origin"];
-                "X-CSRF-Token"?: string;
-            };
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
-            };
-        };
-        responses: {
-            /** @description Development workspace result. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResult"];
-                };
-            };
-            /** @description Request rejected. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
-    testWebhook: {
-        parameters: {
-            query?: never;
-            header: {
-                "Idempotency-Key": string;
-                /**
-                 * @description Browser requests send this header automatically; non-browser clients
-                 *     must send an Origin that exactly matches the backend `APP_ORIGIN`.
-                 */
-                Origin?: components["parameters"]["Origin"];
-                "X-CSRF-Token"?: string;
-            };
-            path: {
-                organization_id: string;
-                resource_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["WorkspaceCommand"];
-            };
-        };
-        responses: {
-            /** @description Development workspace result. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["WorkspaceResult"];
-                };
-            };
-            /** @description Request rejected. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-            /** @description Request rejected. */
-            504: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Error"];
-                };
-            };
-        };
-    };
     workspaceEvents: {
         parameters: {
             query?: never;
@@ -2966,7 +2838,6 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
             500: components["responses"]["InternalServerError"];
             504: components["responses"]["GatewayTimeout"];
         };
@@ -2999,6 +2870,587 @@ export interface operations {
             404: components["responses"]["NotFound"];
             500: components["responses"]["InternalServerError"];
             504: components["responses"]["GatewayTimeout"];
+        };
+    };
+    getAccountSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountSummary"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getWallet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WalletState"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listNumbers: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NumberList"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listMessages: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageList"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listLedger: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                status?: string;
+                q?: string;
+            };
+            header?: never;
+            path: {
+                organization_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LedgerList"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                organization_id: string;
+                /** @description Payment reference shown on the checkout. */
+                resource_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Development workspace result. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentOrder"];
+                };
+            };
+            /** @description Request rejected. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request rejected. */
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
 }

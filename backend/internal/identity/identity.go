@@ -25,6 +25,7 @@ type User struct {
 }
 
 type Organization struct {
+	Slug      string
 	ID        string
 	Name      string
 	Role      string

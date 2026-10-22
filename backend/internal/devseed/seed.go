@@ -43,8 +43,8 @@ func Run(ctx context.Context, pool *pgxpool.Pool, environment, password string) 
 	if err := q.SeedLock(ctx); err != nil {
 		return errors.New("seed could not acquire lock")
 	}
-	for _, org := range []struct{ id, name string }{{WorkspaceID, "NumDock Development (Mock)"}, {IsolatedWorkspaceID, "Isolated Development (Mock)"}} {
-		if err := q.SeedOrganization(ctx, seeddb.SeedOrganizationParams{ID: org.id, Name: org.name}); err != nil {
+	for _, org := range []struct{ id, name, slug string }{{WorkspaceID, "NumDock Development (Mock)", "numdock-development"}, {IsolatedWorkspaceID, "Isolated Development (Mock)", "numdock-isolated"}} {
+		if err := q.SeedOrganization(ctx, seeddb.SeedOrganizationParams{ID: org.id, Name: org.name, Slug: org.slug}); err != nil {
 			return errors.New("seed organization failed")
 		}
 	}
